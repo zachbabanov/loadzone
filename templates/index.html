@@ -1,0 +1,1561 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Load Zone</title>
+  <link rel="icon" href="/static/favicon.svg" type="svg + xml">
+  <link href="https://fonts.googleapis.com/css?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <style>
+    :root {
+      --protey-blue: #0055a4;
+      --protey-dark-blue: #003a75;
+      --protey-light-blue: #f0f7ff;
+      --protey-accent: #007bff;
+      --protey-success: #28a745;
+      --protey-danger: #dc3545;
+      --protey-warning: #ffc107;
+      --text-primary: #212529;
+      --text-secondary: #6c757d;
+      --border-color: #dee2e6;
+      --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      --sidebar-width: 280px;
+      --bg-primary: #f8f9fa;
+      --bg-secondary: #ffffff;
+      --card-bg: #ffffff;
+      --text-normal: #212529;
+    }
+
+    .dark-theme {
+      --bg-primary: #121212;
+      --bg-secondary: #1e1e1e;
+      --card-bg: #2d2d2d;
+      --text-normal: #e0e0e0;
+      --text-secondary: #a0a0a0;
+      --border-color: #444444;
+    }
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+    }
+    
+    body {
+      font-family: 'Roboto', sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-normal);
+      display: flex;
+      min-height: 100vh;
+      padding: 0;
+      overflow: hidden;
+    }
+    
+    .app-container {
+      display: flex;
+      width: 100%;
+      min-height: 100vh;
+    }
+    
+    .sidebar {
+      width: var(--sidebar-width);
+      background: var(--bg-secondary);
+      box-shadow: var(--card-shadow);
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+    
+    .sidebar-header {
+      padding: 24px 20px 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .logo-container {
+      display: flex;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+    
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      background: var(--protey-blue);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 12px;
+    }
+    
+    .logo-icon svg {
+      width: 24px;
+      height: 24px;
+      fill: white;
+    }
+    
+    .logo-text {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--protey-dark-blue);
+    }
+    
+    .logo-text span {
+      color: var(--protey-blue);
+    }
+    
+    .search-container {
+      position: relative;
+      margin-bottom: 24px;
+    }
+    
+    .search-container input {
+      width: 100%;
+      padding: 12px 16px 12px 48px;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      font-size: 14px;
+      transition: all 0.3s;
+      background: var(--bg-secondary);
+      color: var(--text-normal);
+    }
+    
+    .search-container input:focus {
+      outline: none;
+      border-color: var(--protey-blue);
+      box-shadow: 0 0 0 3px rgba(0, 85, 164, 0.2);
+    }
+    
+    .search-icon {
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 20px;
+      height: 20px;
+      fill: var(--text-secondary);
+    }
+    
+    .sidebar-nav {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 0;
+    }
+    
+    .nav-title {
+      padding: 8px 20px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+    
+    .nav-list {
+      list-style: none;
+    }
+    
+    .nav-item {
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-weight: 500;
+      color: var(--text-normal);
+      border-left: 3px solid transparent;
+    }
+    
+    .nav-item.active {
+      background: rgba(0, 85, 164, 0.1);
+      border-left: 3px solid var(--protey-blue);
+      color: var(--protey-blue);
+    }
+    
+    .nav-item:hover:not(.active) {
+      background: rgba(0, 85, 164, 0.05);
+    }
+    
+    .nav-icon {
+      margin-right: 12px;
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
+    }
+    
+    .nav-text {
+      flex: 1;
+    }
+    
+    .nav-badge {
+      background: var(--protey-blue);
+      color: white;
+      font-size: 12px;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-weight: 500;
+    }
+    
+    .sidebar-footer {
+      padding: 16px 20px;
+      border-top: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+    }
+    
+    .user-profile {
+      display: flex;
+      align-items: center;
+      padding: 8px;
+      border-radius: 8px;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+    
+    .user-profile:hover {
+      background: rgba(0, 85, 164, 0.1);
+    }
+    
+    .user-avatar {
+      width: 36px;
+      height: 36px;
+      background: var(--protey-blue);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 500;
+      margin-right: 12px;
+    }
+    
+    .user-info {
+      flex: 1;
+    }
+    
+    .user-name {
+      font-weight: 500;
+      font-size: 14px;
+      margin-bottom: 2px;
+      color: var(--text-normal);
+    }
+    
+    .user-email {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+    
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      height: 100vh;
+      background: var(--bg-primary);
+    }
+    
+    .topbar {
+      height: 70px;
+      background: var(--bg-secondary);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      z-index: 90;
+      flex-shrink: 0;
+    }
+    
+    .page-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--protey-dark-blue);
+    }
+    
+    .topbar-actions {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    
+    .action-button {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      cursor: pointer;
+      transition: all 0.2s;
+      fill: var(--protey-blue);
+    }
+    
+    .action-button:hover {
+      background: var(--protey-blue);
+      fill: white;
+      border-color: var(--protey-blue);
+    }
+    
+    .content-area {
+      flex: 1;
+      padding: 24px;
+      overflow-y: auto;
+      background: var(--bg-primary);
+    }
+    
+    .content-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+    
+    .section-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-normal);
+    }
+    
+    .section-actions {
+      display: flex;
+      gap: 12px;
+    }
+    
+    .primary-button {
+      background: var(--protey-blue);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.3s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+    }
+    
+    .primary-button:hover {
+      background: var(--protey-dark-blue);
+    }
+    
+    .secondary-button {
+      background: var(--bg-secondary);
+      color: var(--protey-blue);
+      border: 1px solid var(--protey-blue);
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+    }
+    
+    .secondary-button:hover {
+      background: rgba(0, 85, 164, 0.1);
+    }
+    
+    .vm-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 24px;
+      margin-bottom: 40px;
+    }
+    
+    .vm-grid-header {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border-color);
+      margin-bottom: 16px;
+    }
+    
+    .vm-group-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-normal);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .vm-group-badge {
+      background: var(--protey-light-blue);
+      color: var(--protey-blue);
+      font-size: 12px;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-weight: 500;
+    }
+    
+    .vm-card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      box-shadow: var(--card-shadow);
+      padding: 20px;
+      transition: all 0.3s ease;
+      border-top: 4px solid var(--protey-success);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .vm-card.booked {
+      border-top-color: var(--protey-danger);
+    }
+    
+    .vm-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    }
+    
+    .vm-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 16px;
+    }
+    
+    .vm-name {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-normal);
+    }
+    
+    .vm-status {
+      font-size: 12px;
+      font-weight: 500;
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+    
+    .vm-status.free {
+      background: rgba(40, 167, 69, 0.1);
+      color: var(--protey-success);
+    }
+    
+    .vm-status.booked {
+      background: rgba(220, 53, 69, 0.1);
+      color: var(--protey-danger);
+    }
+    
+    .vm-details {
+      margin-bottom: 20px;
+    }
+    
+    .vm-detail {
+      display: flex;
+      margin-bottom: 12px;
+      font-size: 14px;
+    }
+    
+    .detail-label {
+      width: 120px;
+      color: var(--text-secondary);
+    }
+    
+    .detail-value {
+      flex: 1;
+      font-weight: 500;
+      word-break: break-all;
+      color: var(--text-normal);
+    }
+    
+    .user-avatar-small {
+      width: 24px;
+      height: 24px;
+      background: var(--protey-blue);
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 10px;
+      font-weight: 500;
+      margin-right: 8px;
+    }
+    
+    .vm-actions {
+      display: flex;
+      gap: 10px;
+    }
+    
+    .vm-action-button {
+      flex: 1;
+      padding: 8px;
+      border-radius: 8px;
+      border: none;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-size: 13px;
+    }
+    
+    .book-button {
+      background: var(--protey-blue);
+      color: white;
+    }
+    
+    .book-button:hover {
+      background: var(--protey-dark-blue);
+    }
+    
+    .renew-button {
+      background: var(--bg-secondary);
+      color: var(--protey-blue);
+      border: 1px solid var(--protey-blue);
+    }
+    
+    .renew-button:hover {
+      background: rgba(0, 85, 164, 0.1);
+    }
+    
+    .notif-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 340px;
+      z-index: 1000;
+    }
+    
+    .notif {
+      background: var(--card-bg);
+      border-left: 4px solid var(--protey-blue);
+      padding: 16px;
+      margin-top: 16px;
+      box-shadow: var(--card-shadow);
+      border-radius: 8px;
+      display: flex;
+      align-items: flex-start;
+      animation: slideIn 0.3s ease;
+    }
+    
+    .notif-icon {
+      width: 24px;
+      height: 24px;
+      background: var(--protey-light-blue);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 12px;
+      flex-shrink: 0;
+    }
+    
+    .notif-icon svg {
+      width: 14px;
+      height: 14px;
+      fill: var(--protey-blue);
+    }
+    
+    .notif-content {
+      flex: 1;
+    }
+    
+    .notif-title {
+      font-weight: 500;
+      margin-bottom: 4px;
+      color: var(--text-normal);
+    }
+    
+    .notif-message {
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+    
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateX(100%);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+    
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+    }
+    
+    .modal.active {
+      display: flex;
+      animation: fadeIn 0.3s ease;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    .modal-content {
+      background: var(--card-bg);
+      padding: 32px;
+      border-radius: 16px;
+      width: 460px;
+      max-width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+      position: relative;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+    }
+    
+    .modal-close {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+      cursor: pointer;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: all 0.2s;
+      background: var(--bg-secondary);
+    }
+    
+    .modal-close svg {
+      width: 18px;
+      height: 18px;
+      fill: var(--text-secondary);
+    }
+    
+    .modal-close:hover {
+      background: var(--border-color);
+    }
+    
+    .modal-header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    
+    .modal-icon {
+      width: 80px;
+      height: 80px;
+      background: var(--protey-light-blue);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+    }
+    
+    .modal-icon svg {
+      width: 40px;
+      height: 40px;
+      fill: var(--protey-blue);
+    }
+    
+    .modal-title {
+      font-size: 24px;
+      font-weight: 600;
+      color: var(--text-normal);
+      margin-bottom: 8px;
+    }
+    
+    .modal-subtitle {
+      color: var(--text-secondary);
+      font-size: 16px;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    .form-label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: var(--text-normal);
+      font-size: 14px;
+    }
+    
+    .form-control {
+      width: 100%;
+      padding: 14px 16px;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      font-size: 16px;
+      transition: all 0.3s;
+      background: var(--bg-secondary);
+      color: var(--text-normal);
+    }
+    
+    .form-control:focus {
+      outline: none;
+      border-color: var(--protey-blue);
+      box-shadow: 0 0 0 3px rgba(0, 85, 164, 0.2);
+    }
+    
+    .modal-footer {
+      margin-top: 24px;
+      display: flex;
+      gap: 12px;
+    }
+    
+    .btn {
+      flex: 1;
+      padding: 14px;
+      border-radius: 8px;
+      font-weight: 500;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    
+    .btn-primary {
+      background: var(--protey-blue);
+      color: white;
+      border: none;
+    }
+    
+    .btn-primary:hover {
+      background: var(--protey-dark-blue);
+    }
+    
+    .btn-secondary {
+      background: var(--bg-secondary);
+      color: var(--protey-blue);
+      border: 1px solid var(--border-color);
+    }
+    
+    .btn-secondary:hover {
+      background: var(--border-color);
+      border-color: var(--protey-blue);
+    }
+    
+    .form-hint {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo-container">
+          <div class="logo-icon">
+            <svg viewBox="0 0 24 24">
+              <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-8 14H7v-2h4v2zm0-4H7v-2h4v2zm0-4H7V7h4v2zm6 8h-4v-2h4v2zm0-4h-4v-2h4v2z"/>
+            </svg>
+          </div>
+          <div class="logo-text">Load<span>Zone</span></div>
+        </div>
+        
+        <div class="search-container">
+          <input type="search" id="vm-search" placeholder="Поиск VM...">
+          <svg class="search-icon" viewBox="0 0 24 24">
+            <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+          </svg>
+        </div>
+      </div>
+      
+      <nav class="sidebar-nav">
+        <div class="nav-title">Группы</div>
+        <ul class="nav-list" id="group-filters">
+          <li class="nav-item active" data-group="all">
+            <svg class="nav-icon" viewBox="0 0 24 24">
+              <path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/>
+            </svg>
+            <span class="nav-text">Все виртуальные машины</span>
+            <span class="nav-badge" id="all-vms-count">0</span>
+          </li>
+        </ul>
+      </nav>
+      
+      <div class="sidebar-footer">
+        <div class="user-profile" id="user-profile">
+          <div class="user-avatar" id="user-avatar">U</div>
+          <div class="user-info">
+            <div class="user-name" id="user-name">Пользователь</div>
+            <div class="user-email" id="user-email">user@example.com</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+    <main class="main-content">
+      <div class="topbar">
+        <div class="page-title" id="page-title">Виртуальные машины</div>
+        <div class="topbar-actions">
+          <button class="action-button" title="Переключить тему" id="theme-toggle">
+            <svg viewBox="0 0 24 24" width="18" height="18" id="theme-icon">
+              <path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      
+      <div class="content-area" id="content-area">
+        <div class="content-header">
+          <div class="section-title">Все виртуальные машины</div>
+          <div class="section-actions">
+            <button class="secondary-button" id="create-group-btn">
+              <svg viewBox="0 0 24 24" width="16" height="16">
+                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+              </svg>
+              Новая группа
+            </button>
+            <button class="primary-button" id="add-vm-btn">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="white">
+                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+              </svg>
+              Добавить VM
+            </button>
+          </div>
+        </div>
+        
+        <div id="groups"></div>
+      </div>
+    </main>
+  </div>
+  
+  <div class="notif-container" id="notifications"></div>
+  <div id="modal" class="modal">
+    <div class="modal-content">
+      <button class="modal-close" id="modal-close">
+        <svg viewBox="0 0 24 24">
+          <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+        </svg>
+      </button>
+      
+      <div class="modal-header">
+        <div class="modal-icon">
+          <svg viewBox="0 0 24 24">
+            <path d="M17 3H7c-1.1 0-1.99.9-1.99 2L5 21l7-3 7 3V5c0-1.1-.9-2-2-2zm0 15l-5-2.18L7 18V5h10v13z"/>
+          </svg>
+        </div>
+        <h2 class="modal-title">Бронирование VM</h2>
+        <p class="modal-subtitle" id="modal-vm-id">VM ID</p>
+      </div>
+      
+      <form id="booking-form">
+        <input type="hidden" id="form-vm-id">
+        
+        <div class="form-group">
+          <label class="form-label" for="hours">Длительность бронирования (часы)</label>
+          <input type="number" id="hours" class="form-control" value="24" min="1" max="24" required>
+        </div>
+        
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="modal-cancel">Отмена</button>
+          <button type="submit" class="btn btn-primary">Подтвердить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <div id="auth-modal" class="modal">
+    <div class="modal-content">
+      <button class="modal-close" id="auth-close">
+        <svg viewBox="0 0 24 24">
+          <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+        </svg>
+      </button>
+      
+      <div class="modal-header">
+        <div class="modal-icon">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+          </svg>
+        </div>
+        <h2 class="modal-title">Авторизация</h2>
+        <p class="modal-subtitle">Введите ваш email для входа</p>
+      </div>
+      
+      <form id="auth-form">
+        <div class="form-group">
+          <label class="form-label" for="email">Email</label>
+          <input type="email" id="email" class="form-control" required placeholder="user@example.com">
+        </div>
+        
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Продолжить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <div id="add-vm-modal" class="modal">
+    <div class="modal-content">
+      <button class="modal-close" id="add-vm-close">
+        <svg viewBox="0 0 24 24">
+          <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+        </svg>
+      </button>
+      
+      <div class="modal-header">
+        <div class="modal-icon">
+          <svg width="120" height="100" viewBox="0 0 100 80">
+  <path d="M10,10 h80 a10,10 0 0 1 10,10 v40 a10,10 0 0 1 -10,10 h-80 a10,10 0 0 1 -10,-10 v-40 a10,10 0 0 1 10,-10 z"
+        fill="#3182ce" />
+  
+  <path d="M20,25 h60 M20,40 h60 M20,55 h60" 
+        stroke="#ebf8ff" 
+        stroke-width="3" />
+  
+  <path d="M75,65 a5,5 0 1 1 0,-10 a5,5 0 1 1 0,10 z" 
+        fill="#90edb3" />
+          </svg>
+        </div>
+        <h2 class="modal-title">Добавить виртуальную машину</h2>
+        <p class="modal-subtitle">Укажите параметры новой VM</p>
+      </div>
+      
+      <form id="add-vm-form">
+        <div class="form-group">
+          <label class="form-label" for="vm-id">Идентификатор VM</label>
+          <input type="text" id="vm-id" class="form-control" required placeholder="Например: server-01">
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label" for="vm-group">Группа (опционально)</label>
+          <select id="vm-group" class="form-control">
+            <option value="">Без группы</option>
+          </select>
+        </div>
+        
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="add-vm-cancel">Отмена</button>
+          <button type="submit" class="btn btn-primary">Добавить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <div id="create-group-modal" class="modal">
+    <div class="modal-content">
+      <button class="modal-close" id="create-group-close">
+        <svg viewBox="0 0 24 24">
+          <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+        </svg>
+      </button>
+      
+      <div class="modal-header">
+        <div class="modal-icon">
+          <svg viewBox="0 0 24 24">
+            <path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/>
+            <path d="M18 14h-4v-2h4v2zm0-3h-4V9h4v2z"/>
+          </svg>
+        </div>
+        <h2 class="modal-title">Создать новую группу</h2>
+        <p class="modal-subtitle">Укажите параметры группы</p>
+      </div>
+      
+      <form id="create-group-form">
+        <div class="form-group">
+          <label class="form-label" for="group-name">Название группы</label>
+          <input type="text" id="group-name" class="form-control" required placeholder="Например: Продакшн серверы">
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label" for="group-vms">VM в группе (опционально)</label>
+          <select id="group-vms" class="form-control" multiple style="height: 150px;">
+          </select>
+          <div class="form-hint">Для выбора нескольких VM: Ctrl+Клик</div>
+        </div>
+        
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="create-group-cancel">Отмена</button>
+          <button type="submit" class="btn btn-primary">Создать</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <script>
+    const socket = io();
+    const groupsContainer = document.getElementById('groups');
+    const filtersList = document.getElementById('group-filters');
+    const searchInput = document.getElementById('vm-search');
+    const userAvatar = document.getElementById('user-avatar');
+    const userName = document.getElementById('user-name');
+    const userEmailEl = document.getElementById('user-email');
+    const allVmsCount = document.getElementById('all-vms-count');
+    const pageTitle = document.getElementById('page-title');
+    const themeToggle = document.getElementById('theme-toggle');
+    const themeIcon = document.getElementById('theme-icon');
+    const createGroupBtn = document.getElementById('create-group-btn');
+    const addVmBtn = document.getElementById('add-vm-btn');
+
+    let groupNames = {};
+    let allVms = [];
+    let allGroups = [];
+
+    document.addEventListener('DOMContentLoaded', () => {
+      checkAuth();
+      initTheme();
+      refreshAll();
+      setupEventListeners();
+    });
+
+    function setupEventListeners() {
+      createGroupBtn.addEventListener('click', openCreateGroupModal);
+      addVmBtn.addEventListener('click', openAddVmModal);
+      
+      document.getElementById('modal-cancel').addEventListener('click', () => {
+        document.getElementById('modal').classList.remove('active');
+      });
+      
+      document.getElementById('user-profile').addEventListener('click', () => {
+        document.getElementById('auth-modal').classList.add('active');
+      });
+      
+      document.getElementById('add-vm-close').addEventListener('click', () => {
+        document.getElementById('add-vm-modal').classList.remove('active');
+      });
+      
+      document.getElementById('create-group-close').addEventListener('click', () => {
+        document.getElementById('create-group-modal').classList.remove('active');
+      });
+      
+      document.getElementById('add-vm-cancel').addEventListener('click', () => {
+        document.getElementById('add-vm-modal').classList.remove('active');
+      });
+      
+      document.getElementById('create-group-cancel').addEventListener('click', () => {
+        document.getElementById('create-group-modal').classList.remove('active');
+      });
+      
+      document.getElementById('add-vm-form').addEventListener('submit', addNewVm);
+      document.getElementById('create-group-form').addEventListener('submit', createNewGroup);
+      
+      themeToggle.addEventListener('click', toggleTheme);
+    }
+
+    socket.on('notification', data => { 
+      addNotification(data.msg); 
+      refreshAll(); 
+    });
+
+    function initTheme() {
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme === 'dark') {
+        document.body.classList.add('dark-theme');
+        updateThemeIcon(true);
+      } else {
+        updateThemeIcon(false);
+      }
+    }
+    
+    function toggleTheme() {
+      const isDark = document.body.classList.toggle('dark-theme');
+      localStorage.setItem('theme', isDark ? 'dark' : 'light');
+      updateThemeIcon(isDark);
+    }
+    
+    function updateThemeIcon(isDark) {
+      if (isDark) {
+        themeIcon.innerHTML = '<path d="M12 9c1.65 0 3 1.35 3 3s-1.35 3-3 3-3-1.35-3-3 1.35-3 3-3m0-2c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z"/>';
+      } else {
+        themeIcon.innerHTML = '<path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/>';
+      }
+    }
+
+    async function refreshAll() {
+      try {
+        const res = await fetch('/vms');
+        const data = await res.json();
+        allVms = data.vms;
+        allGroups = data.groups || [];
+        
+        groupNames = {};
+        allGroups.forEach(g => {
+          groupNames[g.id] = g.name;
+        });
+        
+        renderFilters(allGroups);
+        renderGroups(allVms, allGroups);
+        allVmsCount.textContent = allVms.length;
+        
+        updateGroupSelect();
+        updateVmSelect();
+      } catch (error) {
+        console.error('Ошибка при обновлении данных:', error);
+        addNotification('Ошибка загрузки данных');
+      }
+    }
+
+    function updateGroupSelect() {
+      const select = document.getElementById('vm-group');
+      select.innerHTML = '<option value="">Без группы</option>';
+      
+      allGroups.forEach(group => {
+        const option = document.createElement('option');
+        option.value = group.id;
+        option.textContent = group.name;
+        select.appendChild(option);
+      });
+    }
+    
+    function updateVmSelect() {
+      const select = document.getElementById('group-vms');
+      select.innerHTML = '';
+      
+      allVms.forEach(vm => {
+        const option = document.createElement('option');
+        option.value = vm.id;
+        option.textContent = vm.id;
+        select.appendChild(option);
+      });
+    }
+
+    function renderFilters(groups) {
+      const allFilter = filtersList.querySelector('[data-group="all"]');
+      filtersList.innerHTML = '';
+      filtersList.appendChild(allFilter);
+      
+      groups.forEach(g => {
+        const li = document.createElement('li');
+        li.className = 'nav-item';
+        li.dataset.group = g.id;
+        
+        li.innerHTML = `
+          <svg class="nav-icon" viewBox="0 0 24 24">
+            <path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/>
+          </svg>
+          <span class="nav-text">${g.name}</span>
+          <span class="nav-badge">${g.vm_ids.length}</span>
+        `;
+        
+        li.onclick = () => {
+          filtersList.querySelectorAll('.nav-item').forEach(x => x.classList.remove('active'));
+          li.classList.add('active');
+          pageTitle.textContent = g.name;
+          applyFilters();
+        };
+        
+        filtersList.appendChild(li);
+      });
+      
+      allFilter.onclick = () => {
+        filtersList.querySelectorAll('.nav-item').forEach(x => x.classList.remove('active'));
+        allFilter.classList.add('active');
+        pageTitle.textContent = 'Все виртуальные машины';
+        applyFilters();
+      };
+    }
+
+    function applyFilters() {
+      const activeFilter = filtersList.querySelector('.nav-item.active')?.dataset.group || 'all';
+      const query = searchInput.value.trim().toLowerCase();
+
+      document.querySelectorAll('.vm-card').forEach(card => {
+        const vmId = card.querySelector('.vm-name').textContent.toLowerCase();
+        const matchesSearch = vmId.includes(query);
+        const groupSection = card.closest('.vm-group');
+        const matchesGroup = (activeFilter === 'all') || 
+                            (groupSection && groupSection.dataset.group === activeFilter);
+        
+        card.style.display = (matchesSearch && matchesGroup) ? '' : 'none';
+      });
+      
+      document.querySelectorAll('.vm-group').forEach(group => {
+        const visibleCards = group.querySelectorAll('.vm-card:not([style*="display: none"])').length;
+        group.querySelector('.vm-count').textContent = `${visibleCards} VM`;
+        
+        if (visibleCards === 0) {
+          group.style.display = 'none';
+        } else {
+          group.style.display = '';
+        }
+      });
+    }
+
+    function renderGroups(vms, groups) {
+      groupsContainer.innerHTML = '';
+      const groupedVms = {};
+      groups.forEach(g => {
+        groupedVms[g.id] = vms.filter(vm => vm.group === g.id);
+      });
+      
+      groupedVms['null'] = vms.filter(vm => vm.group == null);
+      
+      groups.forEach(g => {
+        const vmsInGroup = groupedVms[g.id] || [];
+        if (vmsInGroup.length === 0) return;
+        
+        const groupSection = document.createElement('div');
+        groupSection.className = 'vm-group';
+        groupSection.dataset.group = g.id;
+        
+        groupSection.innerHTML = `
+          <div class="vm-grid-header">
+            <div class="vm-group-title">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="${getGroupColor(g.id)}">
+                <path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/>
+              </svg>
+              ${g.name}
+            </div>
+            <div class="vm-count">${vmsInGroup.length} VM</div>
+          </div>
+          <div class="vm-grid"></div>
+        `;
+        
+        const grid = groupSection.querySelector('.vm-grid');
+        vmsInGroup.forEach(vm => grid.appendChild(makeVmCard(vm)));
+        
+        groupsContainer.appendChild(groupSection);
+      });
+      
+      const others = groupedVms['null'] || [];
+      if (others.length > 0) {
+        const groupSection = document.createElement('div');
+        groupSection.className = 'vm-group';
+        groupSection.dataset.group = 'null';
+        
+        groupSection.innerHTML = `
+          <div class="vm-grid-header">
+            <div class="vm-group-title">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="#6c757d">
+                <path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/>
+              </svg>
+              Без группы
+            </div>
+            <div class="vm-count">${others.length} VM</div>
+          </div>
+          <div class="vm-grid"></div>
+        `;
+        
+        const grid = groupSection.querySelector('.vm-grid');
+        others.forEach(vm => grid.appendChild(makeVmCard(vm)));
+        
+        groupsContainer.appendChild(groupSection);
+      }
+      
+      searchInput.oninput = applyFilters;
+    }
+
+    function getGroupColor(groupId) {
+      const colors = [
+        '#0055a4', '#28a745', '#dc3545', '#ffc107', 
+        '#17a2b8', '#6610f2', '#e83e8c', '#20c997'
+      ];
+      return colors[groupId % colors.length];
+    }
+
+    function makeVmCard(vm) {
+      const card = document.createElement('div');
+      card.className = `vm-card ${vm.booked_by ? 'booked' : ''}`;
+      
+      const expires = vm.expires_at ? 
+        new Date(vm.expires_at).toLocaleString('ru-RU', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        }) : '';
+      
+      const userDisplay = vm.booked_by ? vm.booked_by.split('@')[0] : '';
+      const userInitial = userDisplay ? userDisplay.charAt(0).toUpperCase() : '';
+      
+      const groupName = groupNames[vm.group] || 'Без группы';
+      
+      card.innerHTML = `
+        <div class="vm-card-header">
+          <div class="vm-name">${vm.id}</div>
+          <div class="vm-status ${vm.booked_by ? 'booked' : 'free'}">
+            ${vm.booked_by ? 'Занята' : 'Свободна'}
+          </div>
+        </div>
+        
+        <div class="vm-details">
+          <div class="vm-detail">
+            <div class="detail-label">Состояние</div>
+            <div class="detail-value">${vm.booked_by ? 'Забронирована' : 'Доступна'}</div>
+          </div>
+          
+          ${vm.booked_by ? `
+            <div class="vm-detail">
+              <div class="detail-label">Пользователь</div>
+              <div class="detail-value">
+                <span class="user-avatar-small">${userInitial}</span>
+                ${userDisplay}
+              </div>
+            </div>
+          ` : ''}
+          
+          ${vm.expires_at ? `
+            <div class="vm-detail">
+              <div class="detail-label">${vm.booked_by ? 'Истекает' : 'Последняя активность'}</div>
+              <div class="detail-value">${expires}</div>
+            </div>
+          ` : ''}
+          
+          <div class="vm-detail">
+            <div class="detail-label">Группа</div>
+            <div class="detail-value">${groupName}</div>
+          </div>
+        </div>
+        
+        <div class="vm-actions">
+          ${vm.booked_by ? `
+            <button class="vm-action-button renew-button" data-action="renew" data-vm="${vm.id}">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="${vm.booked_by ? '#0055a4' : 'white'}">
+                <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+              </svg>
+              Продлить
+            </button>
+          ` : `
+            <button class="vm-action-button book-button" data-action="book" data-vm="${vm.id}">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="white">
+                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+              </svg>
+              Забронировать
+            </button>
+          `}
+        </div>
+      `;
+      
+      card.querySelector('.vm-action-button').onclick = (e) => {
+        e.stopPropagation();
+        openModal(vm.id);
+      };
+      
+      return card;
+    }
+
+    function openModal(vmId) {
+      document.getElementById('form-vm-id').value = vmId;
+      document.getElementById('modal-vm-id').textContent = vmId;
+      document.getElementById('modal').classList.add('active');
+    }
+    
+    function openAddVmModal() {
+      document.getElementById('add-vm-modal').classList.add('active');
+      document.getElementById('vm-id').focus();
+    }
+    
+    function openCreateGroupModal() {
+      document.getElementById('create-group-modal').classList.add('active');
+      document.getElementById('group-name').focus();
+    }
+
+    async function addNewVm(e) {
+      e.preventDefault();
+      
+      const vmId = document.getElementById('vm-id').value.trim();
+      const groupId = document.getElementById('vm-group').value;
+      
+      if (!vmId) {
+        addNotification('Введите идентификатор VM');
+        return;
+      }
+      
+      try {
+        const response = await fetch('/add-vm', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            id: vmId,
+            group_id: groupId ? parseInt(groupId) : null
+          })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          addNotification(`VM ${data.id} успешно добавлена`);
+          document.getElementById('add-vm-modal').classList.remove('active');
+          document.getElementById('add-vm-form').reset();
+          refreshAll();
+        } else {
+          const error = await response.json();
+          addNotification(error.error || 'Ошибка при добавлении VM');
+        }
+      } catch (error) {
+        console.error('Ошибка при добавлении VM:', error);
+        addNotification('Ошибка при добавлении VM');
+      }
+    }
+    
+    async function createNewGroup(e) {
+      e.preventDefault();
+      
+      const groupName = document.getElementById('group-name').value.trim();
+      const vmSelect = document.getElementById('group-vms');
+      const selectedVmIds = Array.from(vmSelect.selectedOptions).map(opt => opt.value);
+      
+      if (!groupName) {
+        addNotification('Введите название группы');
+        return;
+      }
+      
+      try {
+        const response = await fetch('/groups', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: groupName,
+            vm_ids: selectedVmIds
+          })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          addNotification(`Группа "${data.name}" успешно создана`);
+          document.getElementById('create-group-modal').classList.remove('active');
+          document.getElementById('create-group-form').reset();
+          refreshAll();
+        } else {
+          const error = await response.json();
+          addNotification(error.error || 'Ошибка при создании группы');
+        }
+      } catch (error) {
+        console.error('Ошибка при создании группы:', error);
+        addNotification('Ошибка при создании группы');
+      }
+    }
+
+    document.getElementById('booking-form').onsubmit = async e => {
+      e.preventDefault();
+      const vmId = document.getElementById('form-vm-id').value;
+      const hours = document.getElementById('hours').value;
+      
+      try {
+        const button = document.querySelector(`button[data-vm="${vmId}"]`);
+        const action = button ? button.dataset.action : 'book';
+        
+        await fetch(action === 'book' ? '/book' : '/renew', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ vm_id: vmId, hours })
+        });
+        
+        document.getElementById('modal').classList.remove('active');
+        refreshAll();
+      } catch (error) {
+        console.error('Ошибка при бронировании:', error);
+        addNotification('Ошибка при бронировании');
+      }
+    };
+
+    function addNotification(msg) {
+      const el = document.createElement('div');
+      el.className = 'notif';
+      
+      el.innerHTML = `
+        <div class="notif-icon">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
+          </svg>
+        </div>
+        <div class="notif-content">
+          <div class="notif-title">Уведомление системы</div>
+          <div class="notif-message">${msg}</div>
+        </div>
+      `;
+      
+      document.getElementById('notifications').prepend(el);
+      setTimeout(() => el.remove(), 10000);
+    }
+
+    async function checkAuth() {
+      try {
+        const res = await fetch('/me');
+        const data = await res.json();
+        
+        if (data.authenticated) {
+          updateUserProfile(data.email);
+          document.querySelector('.user-profile').style.display = 'flex';
+        } else {
+          document.getElementById('auth-modal').classList.add('active');
+        }
+      } catch (error) {
+        console.error('Ошибка проверки авторизации:', error);
+        document.getElementById('auth-modal').classList.add('active');
+      }
+    }
+
+    function updateUserProfile(email) {
+      if (!email) return;
+      
+      const name = email.split('@')[0];
+      const initial = name.charAt(0).toUpperCase();
+      
+      userAvatar.textContent = initial;
+      userName.textContent = name;
+      userEmailEl.textContent = email;
+    }
+
+    document.getElementById('auth-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('email').value.trim();
+      
+      if (!email || !email.includes('@')) {
+        addNotification('Введите корректный email');
+        return;
+      }
+      
+      try {
+        const response = await fetch('/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        
+        if (response.ok) {
+          document.getElementById('auth-modal').classList.remove('active');
+          checkAuth();
+          refreshAll();
+        } else {
+          const errorData = await response.json();
+          addNotification(errorData.error || 'Ошибка авторизации');
+        }
+      } catch (error) {
+        console.error('Ошибка авторизации:', error);
+        addNotification('Ошибка при авторизации');
+      }
+    });
+
+    document.getElementById('auth-close').onclick = () => 
+      document.getElementById('auth-modal').classList.remove('active');
+    
+    document.getElementById('auth-modal').onclick = e => {
+      if (e.target.id === 'auth-modal') 
+        document.getElementById('auth-modal').classList.remove('active');
+    };
+    
+    document.querySelectorAll('.modal').forEach(modal => {
+      modal.addEventListener('click', e => {
+        if (e.target === modal) {
+          modal.classList.remove('active');
+        }
+      });
+    });
+  </script>
+</body>
+</html>
