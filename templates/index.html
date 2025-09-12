@@ -35,14 +35,14 @@
       --text-secondary: #a0a0a0;
       --border-color: #444444;
     }
-    
+
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
       transition: background-color 0.3s, color 0.3s, border-color 0.3s;
     }
-    
+
     body {
       font-family: 'Roboto', sans-serif;
       background-color: var(--bg-primary);
@@ -52,13 +52,13 @@
       padding: 0;
       overflow: hidden;
     }
-    
+
     .app-container {
       display: flex;
       width: 100%;
       min-height: 100vh;
     }
-    
+
     .sidebar {
       width: var(--sidebar-width);
       background: var(--bg-secondary);
@@ -69,18 +69,18 @@
       height: 100vh;
       overflow: hidden;
     }
-    
+
     .sidebar-header {
       padding: 24px 20px 16px;
       border-bottom: 1px solid var(--border-color);
     }
-    
+
     .logo-container {
       display: flex;
       align-items: center;
       margin-bottom: 24px;
     }
-    
+
     .logo-icon {
       width: 40px;
       height: 40px;
@@ -91,28 +91,28 @@
       justify-content: center;
       margin-right: 12px;
     }
-    
+
     .logo-icon svg {
       width: 24px;
       height: 24px;
       fill: white;
     }
-    
+
     .logo-text {
       font-size: 20px;
       font-weight: 700;
       color: var(--protey-dark-blue);
     }
-    
+
     .logo-text span {
       color: var(--protey-blue);
     }
-    
+
     .search-container {
       position: relative;
       margin-bottom: 24px;
     }
-    
+
     .search-container input {
       width: 100%;
       padding: 12px 16px 12px 48px;
@@ -123,13 +123,13 @@
       background: var(--bg-secondary);
       color: var(--text-normal);
     }
-    
+
     .search-container input:focus {
       outline: none;
       border-color: var(--protey-blue);
       box-shadow: 0 0 0 3px rgba(0, 85, 164, 0.2);
     }
-    
+
     .search-icon {
       position: absolute;
       left: 16px;
@@ -139,13 +139,13 @@
       height: 20px;
       fill: var(--text-secondary);
     }
-    
+
     .sidebar-nav {
       flex: 1;
       overflow-y: auto;
       padding: 16px 0;
     }
-    
+
     .nav-title {
       padding: 8px 20px;
       font-size: 12px;
@@ -154,11 +154,11 @@
       color: var(--text-secondary);
       font-weight: 500;
     }
-    
+
     .nav-list {
       list-style: none;
     }
-    
+
     .nav-item {
       padding: 12px 20px;
       display: flex;
@@ -169,28 +169,28 @@
       color: var(--text-normal);
       border-left: 3px solid transparent;
     }
-    
+
     .nav-item.active {
       background: rgba(0, 85, 164, 0.1);
       border-left: 3px solid var(--protey-blue);
       color: var(--protey-blue);
     }
-    
+
     .nav-item:hover:not(.active) {
       background: rgba(0, 85, 164, 0.05);
     }
-    
+
     .nav-icon {
       margin-right: 12px;
       width: 20px;
       height: 20px;
       fill: currentColor;
     }
-    
+
     .nav-text {
       flex: 1;
     }
-    
+
     .nav-badge {
       background: var(--protey-blue);
       color: white;
@@ -199,13 +199,13 @@
       border-radius: 20px;
       font-weight: 500;
     }
-    
+
     .sidebar-footer {
       padding: 16px 20px;
       border-top: 1px solid var(--border-color);
       background: var(--bg-secondary);
     }
-    
+
     .user-profile {
       display: flex;
       align-items: center;
@@ -214,11 +214,11 @@
       transition: all 0.2s;
       cursor: pointer;
     }
-    
+
     .user-profile:hover {
       background: rgba(0, 85, 164, 0.1);
     }
-    
+
     .user-avatar {
       width: 36px;
       height: 36px;
@@ -231,23 +231,23 @@
       font-weight: 500;
       margin-right: 12px;
     }
-    
+
     .user-info {
       flex: 1;
     }
-    
+
     .user-name {
       font-weight: 500;
       font-size: 14px;
       margin-bottom: 2px;
       color: var(--text-normal);
     }
-    
+
     .user-email {
       font-size: 12px;
       color: var(--text-secondary);
     }
-    
+
     .main-content {
       flex: 1;
       display: flex;
@@ -256,7 +256,7 @@
       height: 100vh;
       background: var(--bg-primary);
     }
-    
+
     .topbar {
       height: 70px;
       background: var(--bg-secondary);
@@ -267,20 +267,20 @@
       z-index: 90;
       flex-shrink: 0;
     }
-    
+
     .page-title {
       font-size: 20px;
       font-weight: 600;
       color: var(--protey-dark-blue);
     }
-    
+
     .topbar-actions {
       margin-left: auto;
       display: flex;
       align-items: center;
       gap: 16px;
     }
-    
+
     .action-button {
       width: 36px;
       height: 36px;
@@ -294,38 +294,38 @@
       transition: all 0.2s;
       fill: var(--protey-blue);
     }
-    
+
     .action-button:hover {
       background: var(--protey-blue);
       fill: white;
       border-color: var(--protey-blue);
     }
-    
+
     .content-area {
       flex: 1;
       padding: 24px;
       overflow-y: auto;
       background: var(--bg-primary);
     }
-    
+
     .content-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       margin-bottom: 24px;
     }
-    
+
     .section-title {
       font-size: 18px;
       font-weight: 600;
       color: var(--text-normal);
     }
-    
+
     .section-actions {
       display: flex;
       gap: 12px;
     }
-    
+
     .primary-button {
       background: var(--protey-blue);
       color: white;
@@ -340,11 +340,11 @@
       gap: 8px;
       font-size: 14px;
     }
-    
+
     .primary-button:hover {
       background: var(--protey-dark-blue);
     }
-    
+
     .secondary-button {
       background: var(--bg-secondary);
       color: var(--protey-blue);
@@ -359,18 +359,18 @@
       gap: 8px;
       font-size: 14px;
     }
-    
+
     .secondary-button:hover {
       background: rgba(0, 85, 164, 0.1);
     }
-    
+
     .vm-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
       gap: 24px;
       margin-bottom: 40px;
     }
-    
+
     .vm-grid-header {
       grid-column: 1 / -1;
       display: flex;
@@ -380,7 +380,7 @@
       border-bottom: 1px solid var(--border-color);
       margin-bottom: 16px;
     }
-    
+
     .vm-group-title {
       font-size: 16px;
       font-weight: 600;
@@ -389,7 +389,7 @@
       align-items: center;
       gap: 10px;
     }
-    
+
     .vm-group-badge {
       background: var(--protey-light-blue);
       color: var(--protey-blue);
@@ -398,7 +398,7 @@
       border-radius: 20px;
       font-weight: 500;
     }
-    
+
     .vm-card {
       background: var(--card-bg);
       border-radius: 12px;
@@ -409,68 +409,68 @@
       position: relative;
       overflow: hidden;
     }
-    
+
     .vm-card.booked {
       border-top-color: var(--protey-danger);
     }
-    
+
     .vm-card:hover {
       transform: translateY(-5px);
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
     }
-    
+
     .vm-card-header {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
       margin-bottom: 16px;
     }
-    
+
     .vm-name {
       font-size: 16px;
       font-weight: 600;
       color: var(--text-normal);
     }
-    
+
     .vm-status {
       font-size: 12px;
       font-weight: 500;
       padding: 4px 10px;
       border-radius: 20px;
     }
-    
+
     .vm-status.free {
       background: rgba(40, 167, 69, 0.1);
       color: var(--protey-success);
     }
-    
+
     .vm-status.booked {
       background: rgba(220, 53, 69, 0.1);
       color: var(--protey-danger);
     }
-    
+
     .vm-details {
       margin-bottom: 20px;
     }
-    
+
     .vm-detail {
       display: flex;
       margin-bottom: 12px;
       font-size: 14px;
     }
-    
+
     .detail-label {
       width: 120px;
       color: var(--text-secondary);
     }
-    
+
     .detail-value {
       flex: 1;
       font-weight: 500;
       word-break: break-all;
       color: var(--text-normal);
     }
-    
+
     .user-avatar-small {
       width: 24px;
       height: 24px;
@@ -484,54 +484,85 @@
       font-weight: 500;
       margin-right: 8px;
     }
-    
+
     .vm-actions {
       display: flex;
       gap: 10px;
+      flex-wrap: wrap;
     }
-    
+
     .vm-action-button {
-      flex: 1;
-      padding: 8px;
+      padding: 8px 10px;
       border-radius: 8px;
       border: none;
       font-weight: 500;
       cursor: pointer;
       transition: all 0.2s;
-      display: flex;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 6px;
       font-size: 13px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      color: var(--text-normal);
     }
-    
+
+    .vm-action-button svg { width:16px; height:16px; }
+
+    .vm-action-button.primary {
+      background: var(--protey-blue);
+      color: white;
+      border-color: var(--protey-blue);
+    }
+
+    .vm-action-button.ghost {
+      background: transparent;
+    }
+
     .book-button {
       background: var(--protey-blue);
       color: white;
     }
-    
+
     .book-button:hover {
       background: var(--protey-dark-blue);
     }
-    
+
     .renew-button {
       background: var(--bg-secondary);
       color: var(--protey-blue);
       border: 1px solid var(--protey-blue);
     }
-    
+
     .renew-button:hover {
       background: rgba(0, 85, 164, 0.1);
     }
-    
+
+    .delete-button {
+      background: #fff6f6;
+      color: var(--protey-danger);
+      border: 1px solid rgba(176,42,55,0.08);
+    }
+
+    .small-ghost {
+      background: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--text-normal);
+      padding: 8px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
     .notif-container {
       position: fixed;
       bottom: 24px;
       right: 24px;
       width: 340px;
       z-index: 1000;
+      pointer-events: none;
     }
-    
+
     .notif {
       background: var(--card-bg);
       border-left: 4px solid var(--protey-blue);
@@ -542,8 +573,9 @@
       display: flex;
       align-items: flex-start;
       animation: slideIn 0.3s ease;
+      pointer-events: auto;
     }
-    
+
     .notif-icon {
       width: 24px;
       height: 24px;
@@ -555,28 +587,28 @@
       margin-right: 12px;
       flex-shrink: 0;
     }
-    
+
     .notif-icon svg {
       width: 14px;
       height: 14px;
       fill: var(--protey-blue);
     }
-    
+
     .notif-content {
       flex: 1;
     }
-    
+
     .notif-title {
       font-weight: 500;
       margin-bottom: 4px;
       color: var(--text-normal);
     }
-    
+
     .notif-message {
       font-size: 14px;
       color: var(--text-secondary);
     }
-    
+
     @keyframes slideIn {
       from {
         opacity: 0;
@@ -587,7 +619,7 @@
         transform: translateX(0);
       }
     }
-    
+
     .modal {
       display: none;
       position: fixed;
@@ -600,29 +632,29 @@
       align-items: center;
       z-index: 2000;
     }
-    
+
     .modal.active {
       display: flex;
       animation: fadeIn 0.3s ease;
     }
-    
+
     @keyframes fadeIn {
       from { opacity: 0; }
       to { opacity: 1; }
     }
-    
+
     .modal-content {
       background: var(--card-bg);
       padding: 32px;
       border-radius: 16px;
-      width: 460px;
-      max-width: 90%;
+      width: 520px;
+      max-width: 95%;
       max-height: 90vh;
       overflow-y: auto;
       position: relative;
       box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
     }
-    
+
     .modal-close {
       position: absolute;
       top: 24px;
@@ -637,22 +669,22 @@
       transition: all 0.2s;
       background: var(--bg-secondary);
     }
-    
+
     .modal-close svg {
       width: 18px;
       height: 18px;
       fill: var(--text-secondary);
     }
-    
+
     .modal-close:hover {
       background: var(--border-color);
     }
-    
+
     .modal-header {
       text-align: center;
       margin-bottom: 24px;
     }
-    
+
     .modal-icon {
       width: 80px;
       height: 80px;
@@ -663,29 +695,29 @@
       justify-content: center;
       margin: 0 auto 20px;
     }
-    
+
     .modal-icon svg {
       width: 40px;
       height: 40px;
       fill: var(--protey-blue);
     }
-    
+
     .modal-title {
       font-size: 24px;
       font-weight: 600;
       color: var(--text-normal);
       margin-bottom: 8px;
     }
-    
+
     .modal-subtitle {
       color: var(--text-secondary);
       font-size: 16px;
     }
-    
+
     .form-group {
       margin-bottom: 20px;
     }
-    
+
     .form-label {
       display: block;
       margin-bottom: 8px;
@@ -693,7 +725,7 @@
       color: var(--text-normal);
       font-size: 14px;
     }
-    
+
     .form-control {
       width: 100%;
       padding: 14px 16px;
@@ -704,19 +736,19 @@
       background: var(--bg-secondary);
       color: var(--text-normal);
     }
-    
+
     .form-control:focus {
       outline: none;
       border-color: var(--protey-blue);
       box-shadow: 0 0 0 3px rgba(0, 85, 164, 0.2);
     }
-    
+
     .modal-footer {
       margin-top: 24px;
       display: flex;
       gap: 12px;
     }
-    
+
     .btn {
       flex: 1;
       padding: 14px;
@@ -730,32 +762,38 @@
       justify-content: center;
       gap: 8px;
     }
-    
+
     .btn-primary {
       background: var(--protey-blue);
       color: white;
       border: none;
     }
-    
+
     .btn-primary:hover {
       background: var(--protey-dark-blue);
     }
-    
+
     .btn-secondary {
       background: var(--bg-secondary);
       color: var(--protey-blue);
       border: 1px solid var(--border-color);
     }
-    
+
     .btn-secondary:hover {
       background: var(--border-color);
       border-color: var(--protey-blue);
     }
-    
+
     .form-hint {
       font-size: 12px;
       color: var(--text-secondary);
       margin-top: 5px;
+    }
+
+    @media (max-width: 900px) {
+      .sidebar { display: none; }
+      .main-content { height: auto; }
+      .topbar { position: sticky; top: 0; }
     }
   </style>
 </head>
@@ -771,7 +809,7 @@
           </div>
           <div class="logo-text">Load<span>Zone</span></div>
         </div>
-        
+
         <div class="search-container">
           <input type="search" id="vm-search" placeholder="Поиск VM...">
           <svg class="search-icon" viewBox="0 0 24 24">
@@ -779,20 +817,14 @@
           </svg>
         </div>
       </div>
-      
+
       <nav class="sidebar-nav">
         <div class="nav-title">Группы</div>
         <ul class="nav-list" id="group-filters">
-          <li class="nav-item active" data-group="all">
-            <svg class="nav-icon" viewBox="0 0 24 24">
-              <path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/>
-            </svg>
-            <span class="nav-text">Все виртуальные машины</span>
-            <span class="nav-badge" id="all-vms-count">0</span>
-          </li>
+          <!-- "all" filter will be generated dynamically on renderFilters -->
         </ul>
       </nav>
-      
+
       <div class="sidebar-footer">
         <div class="user-profile" id="user-profile">
           <div class="user-avatar" id="user-avatar">U</div>
@@ -814,7 +846,7 @@
           </button>
         </div>
       </div>
-      
+
       <div class="content-area" id="content-area">
         <div class="content-header">
           <div class="section-title">Все виртуальные машины</div>
@@ -833,13 +865,15 @@
             </button>
           </div>
         </div>
-        
+
         <div id="groups"></div>
       </div>
     </main>
   </div>
-  
+
   <div class="notif-container" id="notifications"></div>
+
+  <!-- booking modal -->
   <div id="modal" class="modal">
     <div class="modal-content">
       <button class="modal-close" id="modal-close">
@@ -847,7 +881,7 @@
           <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
         </svg>
       </button>
-      
+
       <div class="modal-header">
         <div class="modal-icon">
           <svg viewBox="0 0 24 24">
@@ -857,15 +891,15 @@
         <h2 class="modal-title">Бронирование VM</h2>
         <p class="modal-subtitle" id="modal-vm-id">VM ID</p>
       </div>
-      
+
       <form id="booking-form">
         <input type="hidden" id="form-vm-id">
-        
+
         <div class="form-group">
           <label class="form-label" for="hours">Длительность бронирования (часы)</label>
           <input type="number" id="hours" class="form-control" value="24" min="1" max="24" required>
         </div>
-        
+
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" id="modal-cancel">Отмена</button>
           <button type="submit" class="btn btn-primary">Подтвердить</button>
@@ -873,7 +907,8 @@
       </form>
     </div>
   </div>
-  
+
+  <!-- auth modal -->
   <div id="auth-modal" class="modal">
     <div class="modal-content">
       <button class="modal-close" id="auth-close">
@@ -881,7 +916,7 @@
           <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
         </svg>
       </button>
-      
+
       <div class="modal-header">
         <div class="modal-icon">
           <svg viewBox="0 0 24 24">
@@ -891,20 +926,21 @@
         <h2 class="modal-title">Авторизация</h2>
         <p class="modal-subtitle">Введите ваш email для входа</p>
       </div>
-      
+
       <form id="auth-form">
         <div class="form-group">
           <label class="form-label" for="email">Email</label>
           <input type="email" id="email" class="form-control" required placeholder="user@example.com">
         </div>
-        
+
         <div class="modal-footer">
           <button type="submit" class="btn btn-primary">Продолжить</button>
         </div>
       </form>
     </div>
   </div>
-  
+
+  <!-- add vm modal -->
   <div id="add-vm-modal" class="modal">
     <div class="modal-content">
       <button class="modal-close" id="add-vm-close">
@@ -912,38 +948,38 @@
           <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
         </svg>
       </button>
-      
+
       <div class="modal-header">
         <div class="modal-icon">
           <svg width="120" height="100" viewBox="0 0 100 80">
   <path d="M10,10 h80 a10,10 0 0 1 10,10 v40 a10,10 0 0 1 -10,10 h-80 a10,10 0 0 1 -10,-10 v-40 a10,10 0 0 1 10,-10 z"
         fill="#3182ce" />
-  
-  <path d="M20,25 h60 M20,40 h60 M20,55 h60" 
-        stroke="#ebf8ff" 
+
+  <path d="M20,25 h60 M20,40 h60 M20,55 h60"
+        stroke="#ebf8ff"
         stroke-width="3" />
-  
-  <path d="M75,65 a5,5 0 1 1 0,-10 a5,5 0 1 1 0,10 z" 
+
+  <path d="M75,65 a5,5 0 1 1 0,-10 a5,5 0 1 1 0,10 z"
         fill="#90edb3" />
           </svg>
         </div>
         <h2 class="modal-title">Добавить виртуальную машину</h2>
         <p class="modal-subtitle">Укажите параметры новой VM</p>
       </div>
-      
+
       <form id="add-vm-form">
         <div class="form-group">
           <label class="form-label" for="vm-id">Идентификатор VM</label>
           <input type="text" id="vm-id" class="form-control" required placeholder="Например: server-01">
         </div>
-        
+
         <div class="form-group">
           <label class="form-label" for="vm-group">Группа (опционально)</label>
           <select id="vm-group" class="form-control">
             <option value="">Без группы</option>
           </select>
         </div>
-        
+
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" id="add-vm-cancel">Отмена</button>
           <button type="submit" class="btn btn-primary">Добавить</button>
@@ -951,7 +987,8 @@
       </form>
     </div>
   </div>
-  
+
+  <!-- create group modal -->
   <div id="create-group-modal" class="modal">
     <div class="modal-content">
       <button class="modal-close" id="create-group-close">
@@ -959,31 +996,31 @@
           <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
         </svg>
       </button>
-      
+
       <div class="modal-header">
         <div class="modal-icon">
           <svg viewBox="0 0 24 24">
-            <path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/>
+            <path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2"/>
             <path d="M18 14h-4v-2h4v2zm0-3h-4V9h4v2z"/>
           </svg>
         </div>
         <h2 class="modal-title">Создать новую группу</h2>
         <p class="modal-subtitle">Укажите параметры группы</p>
       </div>
-      
+
       <form id="create-group-form">
         <div class="form-group">
           <label class="form-label" for="group-name">Название группы</label>
           <input type="text" id="group-name" class="form-control" required placeholder="Например: Продакшн серверы">
         </div>
-        
+
         <div class="form-group">
           <label class="form-label" for="group-vms">VM в группе (опционально)</label>
           <select id="group-vms" class="form-control" multiple style="height: 150px;">
           </select>
           <div class="form-hint">Для выбора нескольких VM: Ctrl+Клик</div>
         </div>
-        
+
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" id="create-group-cancel">Отмена</button>
           <button type="submit" class="btn btn-primary">Создать</button>
@@ -991,7 +1028,70 @@
       </form>
     </div>
   </div>
-  
+
+  <!-- add single VM to group modal (from VM card) -->
+  <div id="add-to-group-modal" class="modal">
+    <div class="modal-content">
+      <button class="modal-close" id="add-to-group-close">
+        <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+      </button>
+      <div class="modal-header">
+        <div class="modal-icon">
+          <svg viewBox="0 0 24 24"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z"/></svg>
+        </div>
+        <h2 class="modal-title">Добавить VM в группу</h2>
+        <p class="modal-subtitle" id="add-to-group-vmid">VM ID</p>
+      </div>
+
+      <form id="add-to-group-form">
+        <input type="hidden" id="add-to-group-vm">
+        <div class="form-group">
+          <label class="form-label" for="add-to-group-select">Выберите группу</label>
+          <select id="add-to-group-select" class="form-control" required>
+            <option value="">-- выбрать группу --</option>
+          </select>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="add-to-group-cancel">Отмена</button>
+          <button type="submit" class="btn btn-primary">Добавить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- NEW: add existing VMs to group modal (from group header) - now MULTISELECT -->
+  <div id="add-existing-modal" class="modal">
+    <div class="modal-content">
+      <button class="modal-close" id="add-existing-close">
+        <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+      </button>
+      <div class="modal-header">
+        <div class="modal-icon">
+          <svg viewBox="0 0 24 24"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z"/></svg>
+        </div>
+        <h2 class="modal-title">Добавить существующие VM в группу</h2>
+        <p class="modal-subtitle" id="add-existing-sub">Выберите VM из списка</p>
+      </div>
+
+      <form id="add-existing-form">
+        <input type="hidden" id="add-existing-group-id">
+        <div class="form-group">
+          <label class="form-label" for="add-existing-select">Доступные VM</label>
+          <select id="add-existing-select" class="form-control" multiple style="height: 220px;">
+            <!-- options filled dynamically: показываются VM, которые НЕ в текущей группе -->
+          </select>
+          <div class="form-hint">Выберите одну или несколько VM, затем нажмите «Добавить».</div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="add-existing-cancel">Отмена</button>
+          <button type="submit" class="btn btn-primary">Добавить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script>
     const socket = io();
     const groupsContainer = document.getElementById('groups');
@@ -1000,7 +1100,6 @@
     const userAvatar = document.getElementById('user-avatar');
     const userName = document.getElementById('user-name');
     const userEmailEl = document.getElementById('user-email');
-    const allVmsCount = document.getElementById('all-vms-count');
     const pageTitle = document.getElementById('page-title');
     const themeToggle = document.getElementById('theme-toggle');
     const themeIcon = document.getElementById('theme-icon');
@@ -1021,40 +1120,60 @@
     function setupEventListeners() {
       createGroupBtn.addEventListener('click', openCreateGroupModal);
       addVmBtn.addEventListener('click', openAddVmModal);
-      
+
       document.getElementById('modal-cancel').addEventListener('click', () => {
         document.getElementById('modal').classList.remove('active');
       });
-      
+
       document.getElementById('user-profile').addEventListener('click', () => {
         document.getElementById('auth-modal').classList.add('active');
       });
-      
+
       document.getElementById('add-vm-close').addEventListener('click', () => {
         document.getElementById('add-vm-modal').classList.remove('active');
       });
-      
+
       document.getElementById('create-group-close').addEventListener('click', () => {
         document.getElementById('create-group-modal').classList.remove('active');
       });
-      
+
       document.getElementById('add-vm-cancel').addEventListener('click', () => {
         document.getElementById('add-vm-modal').classList.remove('active');
       });
-      
+
       document.getElementById('create-group-cancel').addEventListener('click', () => {
         document.getElementById('create-group-modal').classList.remove('active');
       });
-      
+
       document.getElementById('add-vm-form').addEventListener('submit', addNewVm);
       document.getElementById('create-group-form').addEventListener('submit', createNewGroup);
-      
+
       themeToggle.addEventListener('click', toggleTheme);
+
+      // add-to-group modal handlers (from card)
+      document.getElementById('add-to-group-close').addEventListener('click', () => closeAddToGroupModal());
+      document.getElementById('add-to-group-cancel').addEventListener('click', () => closeAddToGroupModal());
+      document.getElementById('add-to-group-form').addEventListener('submit', submitAddToGroup);
+
+      // add-existing modal handlers (from group header) - now multiselect
+      document.getElementById('add-existing-close').addEventListener('click', () => closeAddExistingModal());
+      document.getElementById('add-existing-cancel').addEventListener('click', () => closeAddExistingModal());
+      document.getElementById('add-existing-form').addEventListener('submit', submitAddExistingForm);
+
+      // Close modals on outside click
+      document.querySelectorAll('.modal').forEach(modal => {
+        modal.addEventListener('click', e => {
+          if (e.target === modal) modal.classList.remove('active');
+        });
+      });
+
+      // search input
+      searchInput.addEventListener('input', applyFilters);
     }
 
-    socket.on('notification', data => { 
-      addNotification(data.msg); 
-      refreshAll(); 
+    socket.on('notification', data => {
+      addNotification(data.msg || 'Уведомление');
+      refreshAll();
     });
 
     function initTheme() {
@@ -1066,13 +1185,13 @@
         updateThemeIcon(false);
       }
     }
-    
+
     function toggleTheme() {
       const isDark = document.body.classList.toggle('dark-theme');
       localStorage.setItem('theme', isDark ? 'dark' : 'light');
       updateThemeIcon(isDark);
     }
-    
+
     function updateThemeIcon(isDark) {
       if (isDark) {
         themeIcon.innerHTML = '<path d="M12 9c1.65 0 3 1.35 3 3s-1.35 3-3 3-3-1.35-3-3 1.35-3 3-3m0-2c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z"/>';
@@ -1085,20 +1204,23 @@
       try {
         const res = await fetch('/vms');
         const data = await res.json();
-        allVms = data.vms;
+        allVms = data.vms || [];
         allGroups = data.groups || [];
-        
+
         groupNames = {};
         allGroups.forEach(g => {
           groupNames[g.id] = g.name;
         });
-        
+
         renderFilters(allGroups);
         renderGroups(allVms, allGroups);
-        allVmsCount.textContent = allVms.length;
-        
+        // update badge count (the "all" badge is created in renderFilters)
+        const allBadge = document.getElementById('all-vms-count');
+        if (allBadge) allBadge.textContent = allVms.length;
+
         updateGroupSelect();
         updateVmSelect();
+        updateAddToGroupSelect();
       } catch (error) {
         console.error('Ошибка при обновлении данных:', error);
         addNotification('Ошибка загрузки данных');
@@ -1107,8 +1229,9 @@
 
     function updateGroupSelect() {
       const select = document.getElementById('vm-group');
+      if (!select) return;
       select.innerHTML = '<option value="">Без группы</option>';
-      
+
       allGroups.forEach(group => {
         const option = document.createElement('option');
         option.value = group.id;
@@ -1116,11 +1239,12 @@
         select.appendChild(option);
       });
     }
-    
+
     function updateVmSelect() {
       const select = document.getElementById('group-vms');
+      if (!select) return;
       select.innerHTML = '';
-      
+
       allVms.forEach(vm => {
         const option = document.createElement('option');
         option.value = vm.id;
@@ -1129,40 +1253,60 @@
       });
     }
 
+    function updateAddToGroupSelect() {
+      const sel = document.getElementById('add-to-group-select');
+      if (!sel) return;
+      sel.innerHTML = '<option value="">-- выбрать группу --</option>';
+      allGroups.forEach(g => {
+        const o = document.createElement('option');
+        o.value = g.id;
+        o.textContent = g.name;
+        sel.appendChild(o);
+      });
+    }
+
     function renderFilters(groups) {
-      const allFilter = filtersList.querySelector('[data-group="all"]');
       filtersList.innerHTML = '';
-      filtersList.appendChild(allFilter);
-      
+      const allLi = document.createElement('li');
+      allLi.className = 'nav-item active';
+      allLi.dataset.group = 'all';
+      allLi.innerHTML = `
+        <svg class="nav-icon" viewBox="0 0 24 24">
+          <path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/>
+        </svg>
+        <span class="nav-text">Все виртуальные машины</span>
+        <span class="nav-badge" id="all-vms-count">${allVms.length}</span>
+      `;
+      allLi.onclick = () => {
+        filtersList.querySelectorAll('.nav-item').forEach(x => x.classList.remove('active'));
+        allLi.classList.add('active');
+        pageTitle.textContent = 'Все виртуальные машины';
+        applyFilters();
+      };
+      filtersList.appendChild(allLi);
+
       groups.forEach(g => {
         const li = document.createElement('li');
         li.className = 'nav-item';
         li.dataset.group = g.id;
-        
+
         li.innerHTML = `
           <svg class="nav-icon" viewBox="0 0 24 24">
-            <path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/>
+            <path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z"/>
           </svg>
-          <span class="nav-text">${g.name}</span>
-          <span class="nav-badge">${g.vm_ids.length}</span>
+          <span class="nav-text">${escapeHtml(g.name)}</span>
+          <span class="nav-badge">${(g.vm_ids||[]).length}</span>
         `;
-        
+
         li.onclick = () => {
           filtersList.querySelectorAll('.nav-item').forEach(x => x.classList.remove('active'));
           li.classList.add('active');
           pageTitle.textContent = g.name;
           applyFilters();
         };
-        
+
         filtersList.appendChild(li);
       });
-      
-      allFilter.onclick = () => {
-        filtersList.querySelectorAll('.nav-item').forEach(x => x.classList.remove('active'));
-        allFilter.classList.add('active');
-        pageTitle.textContent = 'Все виртуальные машины';
-        applyFilters();
-      };
     }
 
     function applyFilters() {
@@ -1173,18 +1317,27 @@
         const vmId = card.querySelector('.vm-name').textContent.toLowerCase();
         const matchesSearch = vmId.includes(query);
         const groupSection = card.closest('.vm-group');
-        const matchesGroup = (activeFilter === 'all') || 
-                            (groupSection && groupSection.dataset.group === activeFilter);
-        
+        const matchesGroup = (activeFilter === 'all') ||
+                            (groupSection && String(groupSection.dataset.group) === String(activeFilter));
+
         card.style.display = (matchesSearch && matchesGroup) ? '' : 'none';
       });
-      
+
       document.querySelectorAll('.vm-group').forEach(group => {
         const visibleCards = group.querySelectorAll('.vm-card:not([style*="display: none"])').length;
-        group.querySelector('.vm-count').textContent = `${visibleCards} VM`;
-        
+        const countEl = group.querySelector('.vm-count');
+        if (countEl) countEl.textContent = `${visibleCards} VM`;
+
+        const groupId = String(group.dataset.group);
+        const active = filtersList.querySelector('.nav-item.active')?.dataset.group || 'all';
         if (visibleCards === 0) {
-          group.style.display = 'none';
+          if (active === 'all') {
+            group.style.display = 'none';
+          } else if (String(active) === groupId) {
+            group.style.display = '';
+          } else {
+            group.style.display = 'none';
+          }
         } else {
           group.style.display = '';
         }
@@ -1197,77 +1350,86 @@
       groups.forEach(g => {
         groupedVms[g.id] = vms.filter(vm => vm.group === g.id);
       });
-      
+
       groupedVms['null'] = vms.filter(vm => vm.group == null);
-      
+
       groups.forEach(g => {
         const vmsInGroup = groupedVms[g.id] || [];
-        if (vmsInGroup.length === 0) return;
-        
         const groupSection = document.createElement('div');
         groupSection.className = 'vm-group';
         groupSection.dataset.group = g.id;
-        
+
         groupSection.innerHTML = `
           <div class="vm-grid-header">
             <div class="vm-group-title">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="${getGroupColor(g.id)}">
-                <path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/>
+                <path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z"/>
               </svg>
-              ${g.name}
+              <span>${escapeHtml(g.name)}</span>
             </div>
-            <div class="vm-count">${vmsInGroup.length} VM</div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div class="vm-count">${vmsInGroup.length} VM</div>
+              <button class="small-ghost" title="Добавить существующие" onclick="openAddExistingModal(${g.id})">
+                <svg viewBox="0 0 24 24" width="16" height="16"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"></path></svg>
+              </button>
+              <button class="small-ghost" title="Удалить группу" onclick="onDeleteGroup(${g.id})">
+                <svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 19c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+              </button>
+            </div>
           </div>
           <div class="vm-grid"></div>
         `;
-        
+
         const grid = groupSection.querySelector('.vm-grid');
         vmsInGroup.forEach(vm => grid.appendChild(makeVmCard(vm)));
-        
+
         groupsContainer.appendChild(groupSection);
       });
-      
+
       const others = groupedVms['null'] || [];
       if (others.length > 0) {
         const groupSection = document.createElement('div');
         groupSection.className = 'vm-group';
         groupSection.dataset.group = 'null';
-        
+
         groupSection.innerHTML = `
           <div class="vm-grid-header">
             <div class="vm-group-title">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="#6c757d">
-                <path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/>
+                <path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z"/>
               </svg>
               Без группы
             </div>
-            <div class="vm-count">${others.length} VM</div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div class="vm-count">${others.length} VM</div>
+            </div>
           </div>
           <div class="vm-grid"></div>
         `;
-        
+
         const grid = groupSection.querySelector('.vm-grid');
         others.forEach(vm => grid.appendChild(makeVmCard(vm)));
-        
+
         groupsContainer.appendChild(groupSection);
       }
-      
-      searchInput.oninput = applyFilters;
+
+      if (searchInput) searchInput.oninput = applyFilters;
     }
 
     function getGroupColor(groupId) {
       const colors = [
-        '#0055a4', '#28a745', '#dc3545', '#ffc107', 
+        '#0055a4', '#28a745', '#dc3545', '#ffc107',
         '#17a2b8', '#6610f2', '#e83e8c', '#20c997'
       ];
-      return colors[groupId % colors.length];
+      const idx = Number(groupId) || 0;
+      return colors[idx % colors.length];
     }
 
     function makeVmCard(vm) {
       const card = document.createElement('div');
       card.className = `vm-card ${vm.booked_by ? 'booked' : ''}`;
-      
-      const expires = vm.expires_at ? 
+
+      const expires = vm.expires_at ?
         new Date(vm.expires_at).toLocaleString('ru-RU', {
           day: '2-digit',
           month: '2-digit',
@@ -1275,107 +1437,244 @@
           hour: '2-digit',
           minute: '2-digit'
         }) : '';
-      
+
       const userDisplay = vm.booked_by ? vm.booked_by.split('@')[0] : '';
       const userInitial = userDisplay ? userDisplay.charAt(0).toUpperCase() : '';
-      
+
       const groupName = groupNames[vm.group] || 'Без группы';
-      
+
+      let actionHtml = '';
+      if (vm.booked_by) {
+        actionHtml += `
+          <button class="vm-action-button renew-button" data-action="renew" data-vm="${escapeHtml(vm.id)}">
+            <svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+            Продлить
+          </button>
+        `;
+      } else {
+        actionHtml += `
+          <button class="vm-action-button book-button primary" data-action="book" data-vm="${escapeHtml(vm.id)}">
+            <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+            Забронировать
+          </button>
+        `;
+      }
+
+      actionHtml += `<button class="vm-action-button delete-button" data-vm="${escapeHtml(vm.id)}"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>Удалить</button>`;
+      actionHtml += `<button class="vm-action-button" data-add="${escapeHtml(vm.id)}"><svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>Добавить в группу</button>`;
+
+      if (vm.group) {
+        actionHtml += `<button class="vm-action-button" data-remove="${escapeHtml(vm.id)}" data-group="${vm.group}"><svg viewBox="0 0 24 24"><path d="M19 13H5v-2h14v2z"/></svg>Искл. из группы</button>`;
+      }
+
+      if (vm.booked_by) {
+        actionHtml += `<button class="vm-action-button" data-cancel="${escapeHtml(vm.id)}"><svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zM6 11V6h12v5l2 2v1H4v-1l2-2z"/></svg>Отменить бронь</button>`;
+      }
+
       card.innerHTML = `
         <div class="vm-card-header">
-          <div class="vm-name">${vm.id}</div>
+          <div class="vm-name">${escapeHtml(vm.id)}</div>
           <div class="vm-status ${vm.booked_by ? 'booked' : 'free'}">
             ${vm.booked_by ? 'Занята' : 'Свободна'}
           </div>
         </div>
-        
+
         <div class="vm-details">
           <div class="vm-detail">
             <div class="detail-label">Состояние</div>
             <div class="detail-value">${vm.booked_by ? 'Забронирована' : 'Доступна'}</div>
           </div>
-          
+
           ${vm.booked_by ? `
             <div class="vm-detail">
               <div class="detail-label">Пользователь</div>
               <div class="detail-value">
                 <span class="user-avatar-small">${userInitial}</span>
-                ${userDisplay}
+                ${escapeHtml(userDisplay)}
               </div>
             </div>
           ` : ''}
-          
+
           ${vm.expires_at ? `
             <div class="vm-detail">
               <div class="detail-label">${vm.booked_by ? 'Истекает' : 'Последняя активность'}</div>
               <div class="detail-value">${expires}</div>
             </div>
           ` : ''}
-          
+
           <div class="vm-detail">
             <div class="detail-label">Группа</div>
-            <div class="detail-value">${groupName}</div>
+            <div class="detail-value">${escapeHtml(groupName)}</div>
           </div>
         </div>
-        
+
         <div class="vm-actions">
-          ${vm.booked_by ? `
-            <button class="vm-action-button renew-button" data-action="renew" data-vm="${vm.id}">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="${vm.booked_by ? '#0055a4' : 'white'}">
-                <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
-              </svg>
-              Продлить
-            </button>
-          ` : `
-            <button class="vm-action-button book-button" data-action="book" data-vm="${vm.id}">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="white">
-                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-              </svg>
-              Забронировать
-            </button>
-          `}
+          ${actionHtml}
         </div>
       `;
-      
-      card.querySelector('.vm-action-button').onclick = (e) => {
-        e.stopPropagation();
-        openModal(vm.id);
-      };
-      
+
+      const bookBtn = card.querySelector('[data-action="book"]');
+      if (bookBtn) bookBtn.addEventListener('click', (e) => { e.stopPropagation(); openModal(vm.id, 'book'); });
+
+      const renewBtn = card.querySelector('[data-action="renew"]');
+      if (renewBtn) renewBtn.addEventListener('click', (e) => { e.stopPropagation(); openModal(vm.id, 'renew'); });
+
+      const deleteBtn = card.querySelector('.delete-button');
+      if (deleteBtn) deleteBtn.addEventListener('click', (e) => { e.stopPropagation(); onDeleteVm(vm.id); });
+
+      const removeBtn = card.querySelector('[data-remove]');
+      if (removeBtn) removeBtn.addEventListener('click', (e) => { e.stopPropagation(); onRemoveFromGroup(vm.id, removeBtn.dataset.group); });
+
+      const cancelBtn = card.querySelector('[data-cancel]');
+      if (cancelBtn) cancelBtn.addEventListener('click', (e) => { e.stopPropagation(); onCancel(vm.id); });
+
+      const addBtn = card.querySelector('[data-add]');
+      if (addBtn) addBtn.addEventListener('click', (e) => { e.stopPropagation(); openAddToGroupModal(vm.id); });
+
       return card;
     }
 
-    function openModal(vmId) {
+    function openModal(vmId, actionType = 'book') {
       document.getElementById('form-vm-id').value = vmId;
       document.getElementById('modal-vm-id').textContent = vmId;
       document.getElementById('modal').classList.add('active');
+      document.getElementById('booking-form').dataset.action = actionType;
     }
-    
+
     function openAddVmModal() {
       document.getElementById('add-vm-modal').classList.add('active');
       document.getElementById('vm-id').focus();
     }
-    
+
     function openCreateGroupModal() {
       document.getElementById('create-group-modal').classList.add('active');
       document.getElementById('group-name').focus();
     }
 
+    function openAddToGroupModal(vmId) {
+      document.getElementById('add-to-group-vm').value = vmId;
+      document.getElementById('add-to-group-vmid').textContent = vmId;
+      updateAddToGroupSelect();
+      document.getElementById('add-to-group-modal').classList.add('active');
+    }
+
+    function closeAddToGroupModal() {
+      document.getElementById('add-to-group-modal').classList.remove('active');
+      document.getElementById('add-to-group-form').reset();
+    }
+
+    async function submitAddToGroup(e) {
+      e.preventDefault();
+      const vmId = document.getElementById('add-to-group-vm').value;
+      const gid = document.getElementById('add-to-group-select').value;
+      if (!gid) { addNotification('Выберите группу'); return; }
+      try {
+        const res = await fetch(`/groups/${gid}/add-existing-vms`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ vm_ids: [vmId] })
+        });
+        if (res.ok) {
+          addNotification(`VM ${vmId} добавлена в группу`);
+          closeAddToGroupModal();
+          refreshAll();
+        } else {
+          const err = await res.json().catch(()=>({}));
+          addNotification(err.error || 'Ошибка при добавлении VM в группу');
+        }
+      } catch (e) {
+        console.error(e);
+        addNotification('Ошибка при добавлении VM в группу');
+      }
+    }
+
+    // OPEN Add Existing modal for group (from group header) — now populates multiselect
+    function openAddExistingModal(groupId) {
+      document.getElementById('add-existing-group-id').value = groupId;
+      const sub = document.getElementById('add-existing-sub');
+      if (sub) sub.textContent = `Добавление в группу: ${escapeHtml(groupNames[groupId] || String(groupId))}`;
+      populateAddExistingSelect(groupId);
+      document.getElementById('add-existing-modal').classList.add('active');
+      // focus the select so user can start scrolling/choosing
+      setTimeout(() => {
+        const sel = document.getElementById('add-existing-select');
+        if (sel) sel.focus();
+      }, 50);
+    }
+
+    function closeAddExistingModal() {
+      document.getElementById('add-existing-modal').classList.remove('active');
+      document.getElementById('add-existing-form').reset();
+    }
+
+    // Populate multiselect with all VMs excluding those already in the target group
+    function populateAddExistingSelect(groupId) {
+      const sel = document.getElementById('add-existing-select');
+      if (!sel) return;
+      sel.innerHTML = '';
+      // Sort alphabetically for convenience
+      const sorted = allVms.slice().sort((a,b) => String(a.id).localeCompare(String(b.id)));
+      sorted.forEach(vm => {
+        // show only VMs that are not already in this group
+        if (String(vm.group) === String(groupId)) return;
+        const opt = document.createElement('option');
+        opt.value = vm.id;
+        opt.textContent = `${vm.id}${vm.group ? ' — в группе ' + (groupNames[vm.group] || vm.group) : ''}`;
+        sel.appendChild(opt);
+      });
+      if (sel.options.length === 0) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = 'Нет доступных VM для добавления';
+        opt.disabled = true;
+        sel.appendChild(opt);
+      }
+    }
+
+    async function submitAddExistingForm(e) {
+      e.preventDefault();
+      const gid = document.getElementById('add-existing-group-id').value;
+      const sel = document.getElementById('add-existing-select');
+      if (!gid) { addNotification('Не выбрана группа'); return; }
+      if (!sel) { addNotification('Элемент списка не найден'); return; }
+      const selected = Array.from(sel.selectedOptions).map(o => o.value).filter(Boolean);
+      if (selected.length === 0) { addNotification('Выберите хотя бы одну VM'); return; }
+      try {
+        const res = await fetch(`/groups/${gid}/add-existing-vms`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ vm_ids: selected })
+        });
+        if (res.ok) {
+          const data = await res.json().catch(()=>({ added: selected }));
+          addNotification(`Добавлено ${ (data.added && data.added.length) ? data.added.length : selected.length } VM`);
+          closeAddExistingModal();
+          refreshAll();
+        } else {
+          const err = await res.json().catch(()=>({}));
+          addNotification(err.error || 'Ошибка при добавлении VM');
+        }
+      } catch (e) {
+        console.error(e);
+        addNotification('Ошибка при добавлении VM');
+      }
+    }
+
     async function addNewVm(e) {
       e.preventDefault();
-      
+
       const vmId = document.getElementById('vm-id').value.trim();
       const groupId = document.getElementById('vm-group').value;
-      
+
       if (!vmId) {
         addNotification('Введите идентификатор VM');
         return;
       }
-      
+
       try {
         const response = await fetch('/add-vm', {
           method: 'POST',
-          headers: { 
+          headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -1383,15 +1682,15 @@
             group_id: groupId ? parseInt(groupId) : null
           })
         });
-        
+
         if (response.ok) {
-          const data = await response.json();
-          addNotification(`VM ${data.id} успешно добавлена`);
+          const data = await response.json().catch(()=>({id:vmId}));
+          addNotification(`VM ${data.id || vmId} успешно добавлена`);
           document.getElementById('add-vm-modal').classList.remove('active');
           document.getElementById('add-vm-form').reset();
           refreshAll();
         } else {
-          const error = await response.json();
+          const error = await response.json().catch(()=>({}));
           addNotification(error.error || 'Ошибка при добавлении VM');
         }
       } catch (error) {
@@ -1399,23 +1698,23 @@
         addNotification('Ошибка при добавлении VM');
       }
     }
-    
+
     async function createNewGroup(e) {
       e.preventDefault();
-      
+
       const groupName = document.getElementById('group-name').value.trim();
       const vmSelect = document.getElementById('group-vms');
-      const selectedVmIds = Array.from(vmSelect.selectedOptions).map(opt => opt.value);
-      
+      const selectedVmIds = vmSelect ? Array.from(vmSelect.selectedOptions).map(opt => opt.value) : [];
+
       if (!groupName) {
         addNotification('Введите название группы');
         return;
       }
-      
+
       try {
         const response = await fetch('/groups', {
           method: 'POST',
-          headers: { 
+          headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -1423,15 +1722,15 @@
             vm_ids: selectedVmIds
           })
         });
-        
+
         if (response.ok) {
-          const data = await response.json();
-          addNotification(`Группа "${data.name}" успешно создана`);
+          const data = await response.json().catch(()=>({name:groupName}));
+          addNotification(`Группа "${data.name || groupName}" успешно создана`);
           document.getElementById('create-group-modal').classList.remove('active');
           document.getElementById('create-group-form').reset();
           refreshAll();
         } else {
-          const error = await response.json();
+          const error = await response.json().catch(()=>({}));
           addNotification(error.error || 'Ошибка при создании группы');
         }
       } catch (error) {
@@ -1444,17 +1743,15 @@
       e.preventDefault();
       const vmId = document.getElementById('form-vm-id').value;
       const hours = document.getElementById('hours').value;
-      
+      const action = document.getElementById('booking-form').dataset.action === 'renew' ? '/renew' : '/book';
+
       try {
-        const button = document.querySelector(`button[data-vm="${vmId}"]`);
-        const action = button ? button.dataset.action : 'book';
-        
-        await fetch(action === 'book' ? '/book' : '/renew', {
+        await fetch(action, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ vm_id: vmId, hours })
         });
-        
+
         document.getElementById('modal').classList.remove('active');
         refreshAll();
       } catch (error) {
@@ -1466,7 +1763,7 @@
     function addNotification(msg) {
       const el = document.createElement('div');
       el.className = 'notif';
-      
+
       el.innerHTML = `
         <div class="notif-icon">
           <svg viewBox="0 0 24 24">
@@ -1475,10 +1772,10 @@
         </div>
         <div class="notif-content">
           <div class="notif-title">Уведомление системы</div>
-          <div class="notif-message">${msg}</div>
+          <div class="notif-message">${escapeHtml(msg)}</div>
         </div>
       `;
-      
+
       document.getElementById('notifications').prepend(el);
       setTimeout(() => el.remove(), 10000);
     }
@@ -1487,7 +1784,7 @@
       try {
         const res = await fetch('/me');
         const data = await res.json();
-        
+
         if (data.authenticated) {
           updateUserProfile(data.email);
           document.querySelector('.user-profile').style.display = 'flex';
@@ -1502,10 +1799,10 @@
 
     function updateUserProfile(email) {
       if (!email) return;
-      
+
       const name = email.split('@')[0];
       const initial = name.charAt(0).toUpperCase();
-      
+
       userAvatar.textContent = initial;
       userName.textContent = name;
       userEmailEl.textContent = email;
@@ -1514,25 +1811,25 @@
     document.getElementById('auth-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const email = document.getElementById('email').value.trim();
-      
+
       if (!email || !email.includes('@')) {
         addNotification('Введите корректный email');
         return;
       }
-      
+
       try {
         const response = await fetch('/auth', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email })
         });
-        
+
         if (response.ok) {
           document.getElementById('auth-modal').classList.remove('active');
           checkAuth();
           refreshAll();
         } else {
-          const errorData = await response.json();
+          const errorData = await response.json().catch(()=>({}));
           addNotification(errorData.error || 'Ошибка авторизации');
         }
       } catch (error) {
@@ -1541,21 +1838,102 @@
       }
     });
 
-    document.getElementById('auth-close').onclick = () => 
+    document.getElementById('auth-close').onclick = () =>
       document.getElementById('auth-modal').classList.remove('active');
-    
+
     document.getElementById('auth-modal').onclick = e => {
-      if (e.target.id === 'auth-modal') 
+      if (e.target.id === 'auth-modal')
         document.getElementById('auth-modal').classList.remove('active');
     };
-    
-    document.querySelectorAll('.modal').forEach(modal => {
-      modal.addEventListener('click', e => {
-        if (e.target === modal) {
-          modal.classList.remove('active');
+
+    // --- New functions: delete vm, delete group, remove from group, cancel, add existing ---
+    async function onDeleteVm(vmId) {
+      if (!confirm(`Удалить VM ${vmId}? Это действие необратимо.`)) return;
+      try {
+        const res = await fetch('/delete-vm', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ vm_id: vmId })
+        });
+        if (res.ok) {
+          addNotification(`VM ${vmId} удалена`);
+          refreshAll();
+        } else {
+          const err = await res.json().catch(()=>({}));
+          addNotification(err.error || 'Ошибка при удалении VM');
         }
-      });
-    });
+      } catch (e) {
+        console.error(e);
+        addNotification('Ошибка при удалении VM');
+      }
+    }
+
+    async function onDeleteGroup(groupId) {
+      if (!confirm('Удалить группу?')) return;
+      try {
+        const res = await fetch('/delete-group', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ group_id: groupId })
+        });
+        if (res.ok) {
+          addNotification('Группа удалена');
+          refreshAll();
+        } else {
+          const err = await res.json().catch(()=>({}));
+          addNotification(err.error || 'Ошибка при удалении группы');
+        }
+      } catch (e) {
+        console.error(e);
+        addNotification('Ошибка при удалении группы');
+      }
+    }
+
+    async function onRemoveFromGroup(vmId, groupId=null) {
+      if (!confirm(`Исключить VM ${vmId} из группы?`)) return;
+      const payload = { vm_id: vmId };
+      if (groupId !== null) payload.group_id = groupId;
+      try {
+        const res = await fetch('/remove-vm-from-group', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          addNotification('VM исключена из группы');
+          refreshAll();
+        } else {
+          const err = await res.json().catch(()=>({}));
+          addNotification(err.error || 'Ошибка при исключении из группы');
+        }
+      } catch (e) {
+        console.error(e);
+        addNotification('Ошибка при исключении из группы');
+      }
+    }
+
+    async function onCancel(vmId) {
+      if (!confirm(`Отменить бронь на VM ${vmId}?`)) return;
+      try {
+        const res = await fetch('/cancel', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ vm_id: vmId })
+        });
+        if (res.ok) {
+          addNotification('Бронь отменена');
+          refreshAll();
+        } else {
+          const err = await res.json().catch(()=>({}));
+          addNotification(err.error || 'Ошибка при отмене брони');
+        }
+      } catch (e) {
+        console.error(e);
+        addNotification('Ошибка при отмене брони');
+      }
+    }
+
+    function escapeHtml(s){ return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c])); }
   </script>
 </body>
 </html>
