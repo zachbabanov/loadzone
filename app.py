@@ -28,7 +28,7 @@ def save_data(data):
 
 def schedule_jobs():
     data = load_data()
-    now = datetime.utcnow()
+    now = datetime.now()
     try:
         scheduler.remove_all_jobs()
     except Exception:
@@ -85,7 +85,7 @@ def release_vm(vm_id):
                 user = data['users'][user_email]
                 user.setdefault('bookings', []).append({
                     'vm_id': vm_id,
-                    'start': datetime.utcnow().isoformat(),
+                    'start': datetime.now().isoformat(),
                     'action': 'release'
                 })
 
@@ -198,7 +198,7 @@ def auth():
 
     if email not in users:
         users[email] = {
-            'created': datetime.utcnow().isoformat(),
+            'created': datetime.now().isoformat(),
             'bookings': []
         }
         save_data(data)
@@ -235,13 +235,13 @@ def book_vm():
             if vm.get('booked_by'):
                 return jsonify({'error': 'VM уже забронирована'}), 400
 
-            expires = datetime.utcnow() + timedelta(hours=hours)
+            expires = datetime.now() + timedelta(hours=hours)
             vm['booked_by'] = user_email
             vm['expires_at'] = expires.isoformat()
 
             user.setdefault('bookings', []).append({
                 'vm_id': vm_id,
-                'start': datetime.utcnow().isoformat(),
+                'start': datetime.now().isoformat(),
                 'end': expires.isoformat(),
                 'action': 'book'
             })
@@ -281,7 +281,7 @@ def renew_vm():
 
             user.setdefault('bookings', []).append({
                 'vm_id': vm_id,
-                'start': datetime.utcnow().isoformat(),
+                'start': datetime.now().isoformat(),
                 'end': expires.isoformat(),
                 'action': 'renew'
             })
@@ -339,7 +339,7 @@ def delete_vm():
                 user = data['users'][vm['booked_by']]
                 user.setdefault('bookings', []).append({
                     'vm_id': vm_id,
-                    'start': datetime.utcnow().isoformat(),
+                    'start': datetime.now().isoformat(),
                     'action': 'deleted'
                 })
             remove_scheduled_jobs_for_vm(vm_id)
@@ -455,7 +455,7 @@ def cancel_booking():
             vm['expires_at'] = None
             user.setdefault('bookings', []).append({
                 'vm_id': vm_id,
-                'start': datetime.utcnow().isoformat(),
+                'start': datetime.now().isoformat(),
                 'action': 'cancel'
             })
             save_data(data)
