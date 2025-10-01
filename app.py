@@ -80,13 +80,43 @@ def send_email_notification(to_email: str, subject: str, body: str):
     t.start()
 
 
+def _parse_iso(s):
+    if not s:
+        return None
+    try:
+        return datetime.fromisoformat(s)
+    except Exception:
+        try:
+            return datetime.strptime(s[:19], "%Y-%m-%dT%H:%M:%S")
+        except Exception:
+            return None
+
+
+def remove_notify_release_jobs():
+    """
+    Удаляем только те задачи, которые создаются для уведомлений и релизов VM:
+    id начинается с 'notify_' или 'release_'.
+    Это предотвращает удаление других периодических задач (purge_old_history и т.д.).
+    """
+    try:
+        for job in scheduler.get_jobs():
+            jid = job.id or ""
+            if jid.startswith("notify_") or jid.startswith("release_"):
+                try:
+                    scheduler.remove_job(jid)
+                except Exception:
+                    app.logger.debug("Failed to remove job %s", jid, exc_info=True)
+    except Exception:
+        app.logger.debug("Could not iterate scheduler jobs", exc_info=True)
+
+
 def schedule_jobs():
     data = load_data()
     now = datetime.now()
     try:
-        scheduler.remove_all_jobs()
+        remove_notify_release_jobs()
     except Exception:
-        pass
+        app.logger.exception("Failed to remove old notify/release jobs")
 
     for vm in data['vms']:
         if vm.get('booked_by') and vm.get('expires_at'):
@@ -125,7 +155,8 @@ def schedule_jobs():
                             func=make_notify_first(),
                             trigger='date',
                             run_date=notify_time,
-                            id=f"notify_{vm['id']}"
+                            id=f"notify_{vm['id']}",
+                            replace_existing=True
                         )
                     except Exception:
                         app.logger.exception("Failed to schedule notify job for vm %s", vm.get('id'))
@@ -139,7 +170,8 @@ def schedule_jobs():
                             ),
                             trigger='date',
                             run_date=notify_time,
-                            id=f"notify_{vm['id']}"
+                            id=f"notify_{vm['id']}",
+                            replace_existing=True
                         )
                     except Exception:
                         pass
@@ -150,7 +182,8 @@ def schedule_jobs():
                         func=lambda vm_id=vm['id']: release_vm(vm_id),
                         trigger='date',
                         run_date=expires,
-                        id=f"release_{vm['id']}"
+                        id=f"release_{vm['id']}",
+                        replace_existing=True
                     )
                 except Exception:
                     pass
@@ -667,6 +700,95 @@ def leave_queue():
         return jsonify({'status': 'ok'}), 200
     else:
         return jsonify({'error': 'Вы не в очереди'}), 400
+
+
+def purge_old_history():
+    """
+    Пробегаем по пользователям и очищаем устаревшие booking-записи.
+    Правила:
+      - action == 'cancel' или 'release' и start < now - 1h -> удаляем
+      - action == 'book' и есть end и end < now - 1h -> удаляем
+      - Если для одного vm_id у пользователя есть book -> cancel (или release),
+        и cancel_time < now - 1h -> удалить оба (book и cancel), т.к. пара больше не нужна.
+    """
+    now = datetime.now()
+    cutoff = now - timedelta(seconds=10)
+    data = load_data()
+    changed = False
+
+    users = data.get('users', {})
+    for email, u in list(users.items()):
+        bookings = u.get('bookings', [])
+        if not bookings:
+            continue
+
+        per_vm = {}
+        parsed_events = []
+        for ev in bookings:
+            ev_copy = dict(ev)
+            ev_copy['_start_dt'] = _parse_iso(ev.get('start'))
+            ev_copy['_end_dt'] = _parse_iso(ev.get('end')) if ev.get('end') else None
+            parsed_events.append(ev_copy)
+            per_vm.setdefault(ev.get('vm_id'), []).append(ev_copy)
+
+        keep_events = set()
+        for vm_id, ev_list in per_vm.items():
+            ev_list_sorted = sorted(ev_list, key=lambda x: x.get('_start_dt') or datetime.fromtimestamp(0))
+            for ev in ev_list_sorted:
+                action = ev.get('action')
+                s = ev.get('_start_dt')
+                e = ev.get('_end_dt')
+                if action in ('cancel', 'release'):
+                    if s and s < cutoff:
+                        continue
+                    else:
+                        keep_events.add(id(ev))
+                elif action == 'book':
+                    if e and e < cutoff:
+                        continue
+                    else:
+                        keep_events.add(id(ev))
+                else:
+                    if s and s < cutoff:
+                        continue
+                    keep_events.add(id(ev))
+
+            for ev in ev_list_sorted:
+                if ev.get('action') in ('cancel', 'release'):
+                    cancel_time = ev.get('_start_dt')
+                    if cancel_time and cancel_time < cutoff:
+                        prev_books = [b for b in ev_list_sorted if b.get('action') == 'book' and (b.get('_start_dt') or datetime.fromtimestamp(0)) <= cancel_time]
+                        if prev_books:
+                            for pb in prev_books:
+                                if id(pb) in keep_events:
+                                    keep_events.discard(id(pb))
+                            if id(ev) in keep_events:
+                                keep_events.discard(id(ev))
+
+        new_bookings = []
+        for ev in parsed_events:
+            if id(ev) in keep_events:
+                ev_clean = {k: v for k, v in ev.items() if not k.startswith('_')}
+                new_bookings.append(ev_clean)
+            else:
+                changed = True
+
+        u['bookings'] = new_bookings
+
+    if changed:
+        save_data(data)
+        app.logger.info("purge_old_history: cleaned outdated booking records")
+
+
+try:
+    scheduler.add_job(func=purge_old_history, trigger='interval', seconds=10, id='purge_old_history_job', replace_existing=True)
+except Exception:
+    app.logger.exception("Failed to schedule purge_old_history_job", exc_info=True)
+
+try:
+    purge_old_history()
+except Exception:
+    app.logger.exception("Initial purge_old_history failed")
 
 
 @socketio.on('connect')
