@@ -12,6 +12,7 @@ scheduler.start()
 
 data_file = 'data.json'
 lock = threading.Lock()
+MAX_QUEUE_SIZE = 10
 
 
 def load_data():
@@ -27,8 +28,15 @@ def save_data(data):
 
 
 def schedule_jobs():
+    """
+    Планируем уведомления и освобождения VM.
+    Для каждой забронированной VM:
+      - уведомление за 1 час (как раньше)
+      - если очередь не пустая — дополнительное уведомление первому в очереди за 1 час
+      - задача на полную очистку/освобождение в момент expires
+    """
     data = load_data()
-    now = datetime.now()
+    now = datetime.utcnow()
     try:
         scheduler.remove_all_jobs()
     except Exception:
@@ -47,12 +55,27 @@ def schedule_jobs():
                     scheduler.add_job(
                         func=lambda vm_id=vm['id']: socketio.emit(
                             'notification',
-                            {'msg': f"Бронь VM {vm_id} истекает через час!"}
+                            {'msg': f"Бронь VM {vm_id} истекает через час!", 'vm': vm_id}
                         ),
                         trigger='date',
                         run_date=notify_time,
                         id=f"notify_{vm['id']}"
                     )
+                except Exception:
+                    pass
+
+                try:
+                    if vm.get('queue'):
+                        next_email = vm['queue'][0]
+                        scheduler.add_job(
+                            func=lambda vm_id=vm['id'], email=next_email: socketio.emit(
+                                'notification',
+                                {'msg': f"Вы следующий в очереди на VM {vm_id}", 'target': email, 'vm': vm_id}
+                            ),
+                            trigger='date',
+                            run_date=notify_time,
+                            id=f"queue_next_{vm['id']}"
+                        )
                 except Exception:
                     pass
 
@@ -69,7 +92,7 @@ def schedule_jobs():
 
 
 def remove_scheduled_jobs_for_vm(vm_id):
-    for jid in [f"notify_{vm_id}", f"release_{vm_id}"]:
+    for jid in [f"notify_{vm_id}", f"release_{vm_id}", f"queue_next_{vm_id}"]:
         try:
             scheduler.remove_job(jid)
         except Exception:
@@ -77,7 +100,12 @@ def remove_scheduled_jobs_for_vm(vm_id):
 
 
 def release_vm(vm_id):
+    """
+    Освобождает VM: снимает бронь, удаляет задачи. Если очередь непустая, уведомляет первого в очереди, что VM доступна.
+    (Автоматического назначения/бронирования следующему не делаю — этого не просили.)
+    """
     data = load_data()
+    modified = False
     for vm in data['vms']:
         if vm['id'] == vm_id:
             user_email = vm.get('booked_by')
@@ -85,16 +113,33 @@ def release_vm(vm_id):
                 user = data['users'][user_email]
                 user.setdefault('bookings', []).append({
                     'vm_id': vm_id,
-                    'start': datetime.now().isoformat(),
+                    'start': datetime.utcnow().isoformat(),
                     'action': 'release'
                 })
 
             vm['booked_by'] = None
             vm['expires_at'] = None
-            save_data(data)
+            modified = True
+
             remove_scheduled_jobs_for_vm(vm_id)
-            socketio.emit('notification', {'msg': f"VM {vm_id} освобождена"})
+
+            q = vm.get('queue') or []
+            if q:
+                next_email = q.pop(0)
+                save_data(data)
+                socketio.emit('notification', {
+                    'msg': f"VM {vm_id} стала доступна. Вы первый в очереди.",
+                    'target': next_email,
+                    'vm': vm_id
+                })
+                schedule_jobs()
+                return
+
             break
+
+    if modified:
+        save_data(data)
+        socketio.emit('notification', {'msg': f"VM {vm_id} освобождена"})
 
 
 @app.route('/')
@@ -105,6 +150,8 @@ def index():
 @app.route('/vms', methods=['GET'])
 def list_vms():
     data = load_data()
+    for vm in data['vms']:
+        vm.setdefault('queue', [])
     return jsonify({
         'vms': data['vms'],
         'groups': data.get('groups', [])
@@ -177,7 +224,8 @@ def add_vm():
         'id': vm_id,
         'group': group_id if group_exists else None,
         'booked_by': None,
-        'expires_at': None
+        'expires_at': None,
+        'queue': []
     }
 
     data['vms'].append(new_vm)
@@ -198,7 +246,7 @@ def auth():
 
     if email not in users:
         users[email] = {
-            'created': datetime.now().isoformat(),
+            'created': datetime.utcnow().isoformat(),
             'bookings': []
         }
         save_data(data)
@@ -235,20 +283,22 @@ def book_vm():
             if vm.get('booked_by'):
                 return jsonify({'error': 'VM уже забронирована'}), 400
 
-            expires = datetime.now() + timedelta(hours=hours)
+            expires = datetime.utcnow() + timedelta(hours=hours)
             vm['booked_by'] = user_email
             vm['expires_at'] = expires.isoformat()
+            vm.setdefault('queue', [])
 
             user.setdefault('bookings', []).append({
                 'vm_id': vm_id,
-                'start': datetime.now().isoformat(),
+                'start': datetime.utcnow().isoformat(),
                 'end': expires.isoformat(),
                 'action': 'book'
             })
 
             save_data(data)
             socketio.emit('notification', {
-                'msg': f"{user_email} забронировал VM {vm_id} до {expires.strftime('%Y-%m-%d %H:%M:%S UTC')}"
+                'msg': f"{user_email} забронировал VM {vm_id} до {expires.strftime('%Y-%m-%d %H:%M:%S UTC')}",
+                'vm': vm_id
             })
             schedule_jobs()
             return jsonify(vm)
@@ -281,14 +331,15 @@ def renew_vm():
 
             user.setdefault('bookings', []).append({
                 'vm_id': vm_id,
-                'start': datetime.now().isoformat(),
+                'start': datetime.utcnow().isoformat(),
                 'end': expires.isoformat(),
                 'action': 'renew'
             })
 
             save_data(data)
             socketio.emit('notification', {
-                'msg': f"{user_email} продлил бронь VM {vm_id} до {expires.strftime('%Y-%m-%d %H:%M:%S UTC')}"
+                'msg': f"{user_email} продлил бронь VM {vm_id} до {expires.strftime('%Y-%m-%d %H:%M:%S UTC')}",
+                'vm': vm_id
             })
             schedule_jobs()
             return jsonify(vm)
@@ -314,8 +365,6 @@ def get_me():
     }), 200
 
 
-# ----------------- New endpoints requested -----------------
-
 @app.route('/delete-vm', methods=['POST'])
 def delete_vm():
     user_email = request.cookies.get('user_email')
@@ -329,17 +378,15 @@ def delete_vm():
 
     data = load_data()
     vm_found = False
-    # remove vm from vms list
     new_vms = []
     for vm in data['vms']:
         if vm['id'] == vm_id:
             vm_found = True
-            # log to user history if needed
             if vm.get('booked_by') and vm['booked_by'] in data.get('users', {}):
                 user = data['users'][vm['booked_by']]
                 user.setdefault('bookings', []).append({
                     'vm_id': vm_id,
-                    'start': datetime.now().isoformat(),
+                    'start': datetime.utcnow().isoformat(),
                     'action': 'deleted'
                 })
             remove_scheduled_jobs_for_vm(vm_id)
@@ -351,7 +398,6 @@ def delete_vm():
 
     data['vms'] = new_vms
 
-    # remove from groups vm_ids
     for group in data.get('groups', []):
         if vm_id in group.get('vm_ids', []):
             group['vm_ids'] = [x for x in group['vm_ids'] if x != vm_id]
@@ -375,7 +421,6 @@ def delete_group():
     for g in groups:
         if g['id'] == group_id:
             found = True
-            # unassign group from vms
             for vm in data['vms']:
                 if vm.get('group') == group_id:
                     vm['group'] = None
@@ -402,7 +447,6 @@ def remove_vm_from_group():
     data = load_data()
     updated = False
 
-    # if group_id provided, target that group, else find any group containing vm
     if group_id is not None:
         for group in data.get('groups', []):
             if group['id'] == group_id and vm_id in group.get('vm_ids', []):
@@ -415,7 +459,6 @@ def remove_vm_from_group():
                 group['vm_ids'] = [x for x in group['vm_ids'] if x != vm_id]
                 updated = True
 
-    # update vm object
     for vm in data['vms']:
         if vm['id'] == vm_id:
             vm['group'] = None
@@ -455,12 +498,12 @@ def cancel_booking():
             vm['expires_at'] = None
             user.setdefault('bookings', []).append({
                 'vm_id': vm_id,
-                'start': datetime.now().isoformat(),
+                'start': datetime.utcnow().isoformat(),
                 'action': 'cancel'
             })
             save_data(data)
             remove_scheduled_jobs_for_vm(vm_id)
-            socketio.emit('notification', {'msg': f"{user_email} отменил бронь VM {vm_id}"})
+            socketio.emit('notification', {'msg': f"{user_email} отменил бронь VM {vm_id}", 'vm': vm_id})
             schedule_jobs()
             return jsonify({'status': 'ok'})
 
@@ -492,6 +535,7 @@ def add_existing_vms_to_group(group_id):
                     vm['group'] = group_id
                 if vm_id not in group.get('vm_ids', []):
                     group.setdefault('vm_ids', []).append(vm_id)
+                vm.setdefault('queue', [])
                 added.append(vm_id)
                 break
 
@@ -501,6 +545,89 @@ def add_existing_vms_to_group(group_id):
     save_data(data)
     socketio.emit('notification', {'msg': f"Добавлено {len(added)} VM в группу {group['name']}"})
     return jsonify({'added': added, 'group': group})
+
+
+@app.route('/queue/join', methods=['POST'])
+def queue_join():
+    user_email = request.cookies.get('user_email')
+    if not user_email:
+        return jsonify({'error': 'Требуется авторизация'}), 401
+
+    req = request.get_json()
+    vm_id = req.get('vm_id')
+    if not vm_id:
+        return jsonify({'error': 'Не указан vm_id'}), 400
+
+    data = load_data()
+    vm = None
+    for v in data['vms']:
+        if v['id'] == vm_id:
+            vm = v
+            break
+
+    if not vm:
+        return jsonify({'error': 'VM не найдена'}), 404
+
+    vm.setdefault('queue', [])
+    if vm.get('booked_by') == user_email:
+        return jsonify({'error': 'Вы уже бронируете эту VM'}), 400
+
+    if user_email in vm['queue']:
+        return jsonify({'error': 'Вы уже в очереди'}), 400
+
+    if len(vm['queue']) >= MAX_QUEUE_SIZE:
+        return jsonify({'error': f'Очередь переполнена (макс {MAX_QUEUE_SIZE})'}), 400
+
+    vm['queue'].append(user_email)
+    save_data(data)
+
+    if vm.get('booked_by'):
+        socketio.emit('notification', {
+            'msg': f"На VM {vm_id} встала очередь ({len(vm['queue'])} чел.)",
+            'target': vm.get('booked_by'),
+            'vm': vm_id
+        })
+
+    socketio.emit('notification', {
+        'msg': f"Вы в очереди на VM {vm_id} (позиция {len(vm['queue'])})",
+        'target': user_email,
+        'vm': vm_id
+    })
+
+    schedule_jobs()
+
+    return jsonify({'status': 'ok', 'position': len(vm['queue']), 'queue': vm['queue']})
+
+
+@app.route('/queue/leave', methods=['POST'])
+def queue_leave():
+    user_email = request.cookies.get('user_email')
+    if not user_email:
+        return jsonify({'error': 'Требуется авторизация'}), 401
+
+    req = request.get_json() or {}
+    vm_id = req.get('vm_id')
+
+    data = load_data()
+    modified = False
+    removed_positions = {}
+
+    for vm in data['vms']:
+        if vm_id and vm['id'] != vm_id:
+            continue
+        q = vm.setdefault('queue', [])
+        if user_email in q:
+            q[:] = [e for e in q if e != user_email]
+            removed_positions[vm['id']] = True
+            modified = True
+
+    if not modified:
+        return jsonify({'error': 'Вы не состоите в очереди'}), 400
+
+    save_data(data)
+    schedule_jobs()
+    socketio.emit('notification', {'msg': f"{user_email} вышел(ла) из очереди", 'target': user_email})
+    return jsonify({'status': 'ok', 'removed': list(removed_positions.keys())})
 
 
 @socketio.on('connect')

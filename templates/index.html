@@ -8,6 +8,7 @@
   <link href="https://fonts.googleapis.com/css?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
   <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
   <style>
+    /* --- весь существующий CSS без изменений --- */
     :root {
       --protey-blue: #0055a4;
       --protey-dark-blue: #003a75;
@@ -1109,6 +1110,7 @@
     let groupNames = {};
     let allVms = [];
     let allGroups = [];
+    let currentUserEmail = null; // хранит email текущего пользователя (если авторизован)
 
     document.addEventListener('DOMContentLoaded', () => {
       checkAuth();
@@ -1121,9 +1123,18 @@
       createGroupBtn.addEventListener('click', openCreateGroupModal);
       addVmBtn.addEventListener('click', openAddVmModal);
 
+      // Закрытие модалки кнопкой "Отмена" (нижняя кнопка) — уже было
       document.getElementById('modal-cancel').addEventListener('click', () => {
         document.getElementById('modal').classList.remove('active');
       });
+
+      // --- FIX: добавляем обработчик для крестика в модальном окне бронирования
+      const modalCloseBtn = document.getElementById('modal-close');
+      if (modalCloseBtn) {
+        modalCloseBtn.addEventListener('click', () => {
+          document.getElementById('modal').classList.remove('active');
+        });
+      }
 
       document.getElementById('user-profile').addEventListener('click', () => {
         document.getElementById('auth-modal').classList.add('active');
@@ -1171,8 +1182,15 @@
       searchInput.addEventListener('input', applyFilters);
     }
 
+    // socket notifications — показываем только публичные или адресованные текущему пользователю
     socket.on('notification', data => {
-      addNotification(data.msg || 'Уведомление');
+      // если есть поле target, показываем только целевому пользователю
+      if (data && data.target && currentUserEmail && data.target !== currentUserEmail) {
+        // игнорируем — не для текущего
+        return;
+      }
+      addNotification((data && data.msg) ? data.msg : 'Уведомление');
+      // обновляем данные при любых системных событиях
       refreshAll();
     });
 
@@ -1206,6 +1224,9 @@
         const data = await res.json();
         allVms = data.vms || [];
         allGroups = data.groups || [];
+
+        // make sure every vm has queue array
+        allVms.forEach(vm => vm.queue = vm.queue || []);
 
         groupNames = {};
         allGroups.forEach(g => {
@@ -1443,23 +1464,64 @@
 
       const groupName = groupNames[vm.group] || 'Без группы';
 
-      let actionHtml = '';
-      if (vm.booked_by) {
-        actionHtml += `
-          <button class="vm-action-button renew-button" data-action="renew" data-vm="${escapeHtml(vm.id)}">
-            <svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
-            Продлить
-          </button>
+      // queue info
+      const queue = vm.queue || [];
+      const queueCount = queue.length;
+      const isInQueue = currentUserEmail ? queue.indexOf(currentUserEmail) !== -1 : false;
+      const queuePosition = isInQueue ? queue.indexOf(currentUserEmail) + 1 : null;
+
+      // FIRST in queue display
+      let firstInQueueHtml = '';
+      if (queueCount > 0) {
+        const firstEmail = queue[0];
+        const firstName = firstEmail ? String(firstEmail).split('@')[0] : '';
+        const firstInitial = firstName ? firstName.charAt(0).toUpperCase() : '';
+        const youTag = (currentUserEmail && firstEmail === currentUserEmail) ? ' (вы)' : '';
+        firstInQueueHtml = `
+          <div class="vm-detail">
+            <div class="detail-label">Первый в очереди</div>
+            <div class="detail-value">
+              <span class="user-avatar-small">${escapeHtml(firstInitial)}</span>
+              ${escapeHtml(firstName)}${youTag}
+            </div>
+          </div>
         `;
-      } else {
+      }
+
+      let actionHtml = '';
+
+      // If VM is free -> show book button
+      if (!vm.booked_by) {
         actionHtml += `
           <button class="vm-action-button book-button primary" data-action="book" data-vm="${escapeHtml(vm.id)}">
             <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
             Забронировать
           </button>
         `;
+      } else {
+        // VM is booked -> show renew/cancel only to owner
+        if (currentUserEmail && vm.booked_by === currentUserEmail) {
+          actionHtml += `
+            <button class="vm-action-button renew-button" data-action="renew" data-vm="${escapeHtml(vm.id)}">
+              <svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+              Продлить
+            </button>
+          `;
+          actionHtml += `<button class="vm-action-button" data-cancel="${escapeHtml(vm.id)}"><svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zM6 11V6h12v5l2 2v1H4v-1l2-2z"/></svg>Отменить бронь</button>`;
+        } else {
+          // Not owner: show join queue (for everyone except the owner and if not already in queue)
+          if (!isInQueue) {
+            actionHtml += `<button class="vm-action-button" data-join="${escapeHtml(vm.id)}"><svg viewBox="0 0 24 24"><path d="M13 11h8v2h-8v8h-2v-8H3v-2h8V3h2v8z"/></svg>Встать в очередь</button>`;
+          } else {
+            // if user is in queue, show leave button
+            if (currentUserEmail) {
+              actionHtml += `<button class="vm-action-button" data-leave="${escapeHtml(vm.id)}"><svg viewBox="0 0 24 24"><path d="M19 13H5v-2h14v2z"/></svg>Выйти из очереди</button>`;
+            }
+          }
+        }
       }
 
+      // common actions: delete, add to group, remove from group
       actionHtml += `<button class="vm-action-button delete-button" data-vm="${escapeHtml(vm.id)}"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>Удалить</button>`;
       actionHtml += `<button class="vm-action-button" data-add="${escapeHtml(vm.id)}"><svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>Добавить в группу</button>`;
 
@@ -1467,15 +1529,14 @@
         actionHtml += `<button class="vm-action-button" data-remove="${escapeHtml(vm.id)}" data-group="${vm.group}"><svg viewBox="0 0 24 24"><path d="M19 13H5v-2h14v2z"/></svg>Искл. из группы</button>`;
       }
 
-      if (vm.booked_by) {
-        actionHtml += `<button class="vm-action-button" data-cancel="${escapeHtml(vm.id)}"><svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zM6 11V6h12v5l2 2v1H4v-1l2-2z"/></svg>Отменить бронь</button>`;
-      }
-
       card.innerHTML = `
         <div class="vm-card-header">
           <div class="vm-name">${escapeHtml(vm.id)}</div>
-          <div class="vm-status ${vm.booked_by ? 'booked' : 'free'}">
-            ${vm.booked_by ? 'Занята' : 'Свободна'}
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+            <div class="vm-status ${vm.booked_by ? 'booked' : 'free'}">
+              ${vm.booked_by ? 'Занята' : 'Свободна'}
+            </div>
+            ${queueCount ? `<div style="font-size:12px;color:var(--text-secondary)">Очередь: ${queueCount}</div>` : ''}
           </div>
         </div>
 
@@ -1506,6 +1567,17 @@
             <div class="detail-label">Группа</div>
             <div class="detail-value">${escapeHtml(groupName)}</div>
           </div>
+
+          ${queueCount ? `
+            <div class="vm-detail">
+              <div class="detail-label">Очередь</div>
+              <div class="detail-value">
+                ${queueCount} ${queueCount === 1 ? 'человек' : 'человек'}
+                ${isInQueue ? ` — ваша позиция: ${queuePosition}` : ''}
+              </div>
+            </div>
+            ${firstInQueueHtml}
+          ` : ''}
         </div>
 
         <div class="vm-actions">
@@ -1530,6 +1602,12 @@
 
       const addBtn = card.querySelector('[data-add]');
       if (addBtn) addBtn.addEventListener('click', (e) => { e.stopPropagation(); openAddToGroupModal(vm.id); });
+
+      const joinBtn = card.querySelector('[data-join]');
+      if (joinBtn) joinBtn.addEventListener('click', (e) => { e.stopPropagation(); joinQueue(vm.id); });
+
+      const leaveBtn = card.querySelector('[data-leave]');
+      if (leaveBtn) leaveBtn.addEventListener('click', (e) => { e.stopPropagation(); leaveQueue(vm.id); });
 
       return card;
     }
@@ -1746,11 +1824,18 @@
       const action = document.getElementById('booking-form').dataset.action === 'renew' ? '/renew' : '/book';
 
       try {
-        await fetch(action, {
+        const res = await fetch(action, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ vm_id: vmId, hours })
         });
+
+        if (!res.ok) {
+          const err = await res.json().catch(()=>({}));
+          addNotification(err.error || 'Ошибка при бронировании');
+        } else {
+          addNotification('Операция выполнена');
+        }
 
         document.getElementById('modal').classList.remove('active');
         refreshAll();
@@ -1786,13 +1871,16 @@
         const data = await res.json();
 
         if (data.authenticated) {
+          currentUserEmail = data.email;
           updateUserProfile(data.email);
           document.querySelector('.user-profile').style.display = 'flex';
         } else {
+          currentUserEmail = null;
           document.getElementById('auth-modal').classList.add('active');
         }
       } catch (error) {
         console.error('Ошибка проверки авторизации:', error);
+        currentUserEmail = null;
         document.getElementById('auth-modal').classList.add('active');
       }
     }
@@ -1826,7 +1914,7 @@
 
         if (response.ok) {
           document.getElementById('auth-modal').classList.remove('active');
-          checkAuth();
+          await checkAuth();
           refreshAll();
         } else {
           const errorData = await response.json().catch(()=>({}));
@@ -1845,6 +1933,52 @@
       if (e.target.id === 'auth-modal')
         document.getElementById('auth-modal').classList.remove('active');
     };
+
+    // --- Queue actions: join / leave ---
+    async function joinQueue(vmId) {
+      try {
+        const res = await fetch('/queue/join', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ vm_id: vmId })
+        });
+        if (res.ok) {
+          const data = await res.json().catch(()=>({}));
+          addNotification(`Вы встали в очередь (позиция ${data.position || '—'})`);
+          refreshAll();
+        } else {
+          const err = await res.json().catch(()=>({}));
+          addNotification(err.error || 'Ошибка при попытке встать в очередь');
+          if (res.status === 401) {
+            // попросим авторизоваться
+            document.getElementById('auth-modal').classList.add('active');
+          }
+        }
+      } catch (e) {
+        console.error('joinQueue error', e);
+        addNotification('Ошибка при попытке встать в очередь');
+      }
+    }
+
+    async function leaveQueue(vmId) {
+      try {
+        const res = await fetch('/queue/leave', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ vm_id: vmId })
+        });
+        if (res.ok) {
+          addNotification('Вы вышли из очереди');
+          refreshAll();
+        } else {
+          const err = await res.json().catch(()=>({}));
+          addNotification(err.error || 'Ошибка при выходе из очереди');
+        }
+      } catch (e) {
+        console.error('leaveQueue error', e);
+        addNotification('Ошибка при выходе из очереди');
+      }
+    }
 
     // --- New functions: delete vm, delete group, remove from group, cancel, add existing ---
     async function onDeleteVm(vmId) {
