@@ -382,7 +382,7 @@ def book_vm():
 
             save_data(data)
             socketio.emit('notification', {
-                'msg': f"{user_email} забронировал VM {vm_id} до {expires.strftime('%Y-%m-%d %H:%M:%S UTC')}"
+                'msg': f"{user_email} забронировал VM {vm_id} до {expires.strftime('%Y-%m-%d %H:%M:%S')}"
             })
             schedule_jobs()
             return jsonify(vm)
@@ -422,7 +422,7 @@ def renew_vm():
 
             save_data(data)
             socketio.emit('notification', {
-                'msg': f"{user_email} продлил бронь VM {vm_id} до {expires.strftime('%Y-%m-%d %H:%M:%S UTC')}"
+                'msg': f"{user_email} продлил бронь VM {vm_id} до {expires.strftime('%Y-%m-%d %H:%M:%S')}"
             })
             schedule_jobs()
             return jsonify(vm)
