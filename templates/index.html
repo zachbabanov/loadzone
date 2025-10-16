@@ -796,6 +796,23 @@
       .main-content { height: auto; }
       .topbar { position: sticky; top: 0; }
     }
+
+  .optional-toggle {
+      display:flex;
+      align-items:center;
+      gap:8px;
+      color:var(--text-secondary);
+      font-size:13px;
+      cursor:pointer;
+      user-select:none;
+      margin-bottom:8px;
+    }
+    .optional-toggle svg { width:14px; height:14px; transform:rotate(0deg); transition:transform .18s ease; }
+    .optional-toggle.open svg { transform:rotate(90deg); }
+    .optional-fields { display:none; margin-bottom:12px; }
+    .optional-field-hint { font-size:12px; color:var(--text-secondary); margin-top:4px; }
+    /* маленький отступ для IP строк в карточке */
+    .vm-detail .ip-value { font-family:monospace; word-break:break-all; }
   </style>
 </head>
 <body>
@@ -979,6 +996,24 @@
           <select id="vm-group" class="form-control">
             <option value="">Без группы</option>
           </select>
+        </div>
+
+        <!-- Optional collapsible IP fields -->
+        <div class="optional-toggle" id="optional-toggle" title="Показать дополнительные параметры">
+          <svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+          <div>Дополнительные параметры (опционально)</div>
+        </div>
+        <div class="optional-fields" id="optional-fields" aria-hidden="true">
+          <div class="form-group">
+            <label class="form-label" for="external-ip">External IP <span style="font-weight:400;color:var(--text-secondary);font-size:13px;">(опционально)</span></label>
+            <input type="text" id="external-ip" class="form-control" placeholder="например: 198.51.100.10">
+            <div class="optional-field-hint">Внешний IP — показывается в карточке VM, если заполнен</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="internal-ip">Internal IP <span style="font-weight:400;color:var(--text-secondary);font-size:13px;">(опционально)</span></label>
+            <input type="text" id="internal-ip" class="form-control" placeholder="например: 192.168.1.10">
+            <div class="optional-field-hint">Внутренний IP — показывается в карточке VM, если заполнен</div>
+          </div>
         </div>
 
         <div class="modal-footer">
@@ -1180,6 +1215,24 @@
 
       // search input
       searchInput.addEventListener('input', applyFilters);
+
+      // Optional fields toggle
+      const optToggle = document.getElementById('optional-toggle');
+      const optFields = document.getElementById('optional-fields');
+      if (optToggle && optFields) {
+        optToggle.addEventListener('click', () => {
+          const open = optFields.style.display === 'block';
+          if (open) {
+            optFields.style.display = 'none';
+            optFields.setAttribute('aria-hidden', 'true');
+            optToggle.classList.remove('open');
+          } else {
+            optFields.style.display = 'block';
+            optFields.setAttribute('aria-hidden', 'false');
+            optToggle.classList.add('open');
+          }
+        });
+      }
     }
 
     // socket notifications — показываем только публичные или адресованные текущему пользователю
@@ -1529,6 +1582,24 @@
         actionHtml += `<button class="vm-action-button" data-remove="${escapeHtml(vm.id)}" data-group="${vm.group}"><svg viewBox="0 0 24 24"><path d="M19 13H5v-2h14v2z"/></svg>Искл. из группы</button>`;
       }
 
+      // Prepare IP fields (consider multiple possible key variants returned by server)
+      const externalIp = vm.external_ip || vm.ExternalIP || vm.externalIp || vm.Externalip || vm.externalIP || null;
+      const internalIp = vm.internal_ip || vm.InternalIp || vm.internalIp || vm.InternalIP || null;
+
+      const externalHtml = externalIp ? `
+        <div class="vm-detail">
+          <div class="detail-label">External IP</div>
+          <div class="detail-value ip-value">${escapeHtml(externalIp)}</div>
+        </div>
+      ` : '';
+
+      const internalHtml = internalIp ? `
+        <div class="vm-detail">
+          <div class="detail-label">Internal IP</div>
+          <div class="detail-value ip-value">${escapeHtml(internalIp)}</div>
+        </div>
+      ` : '';
+
       card.innerHTML = `
         <div class="vm-card-header">
           <div class="vm-name">${escapeHtml(vm.id)}</div>
@@ -1562,6 +1633,9 @@
             <div class="detail-label">Группа</div>
             <div class="detail-value">${escapeHtml(groupName)}</div>
           </div>
+
+          ${externalHtml}
+          ${internalHtml}
 
           ${queueCount ? `
             <div class="vm-detail">
@@ -1616,6 +1690,11 @@
 
     function openAddVmModal() {
       document.getElementById('add-vm-modal').classList.add('active');
+      // reset optional block to collapsed when opening
+      const optFields = document.getElementById('optional-fields');
+      const optToggle = document.getElementById('optional-toggle');
+      if (optFields) { optFields.style.display = 'none'; optFields.setAttribute('aria-hidden', 'true'); }
+      if (optToggle) optToggle.classList.remove('open');
       document.getElementById('vm-id').focus();
     }
 
@@ -1739,21 +1818,33 @@
       const vmId = document.getElementById('vm-id').value.trim();
       const groupId = document.getElementById('vm-group').value;
 
+      // optional IPs
+      const externalRaw = document.getElementById('external-ip') ? document.getElementById('external-ip').value.trim() : '';
+      const internalRaw = document.getElementById('internal-ip') ? document.getElementById('internal-ip').value.trim() : '';
+
+      // Normalize: send null if empty (server понимает None/null)
+      const externalIp = externalRaw === '' ? null : externalRaw;
+      const internalIp = internalRaw === '' ? null : internalRaw;
+
       if (!vmId) {
         addNotification('Введите идентификатор VM');
         return;
       }
 
       try {
+        const payload = {
+          id: vmId,
+          group_id: groupId ? parseInt(groupId) : null,
+          external_ip: externalIp,
+          internal_ip: internalIp
+        };
+
         const response = await fetch('/add-vm', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            id: vmId,
-            group_id: groupId ? parseInt(groupId) : null
-          })
+          body: JSON.stringify(payload)
         });
 
         if (response.ok) {
@@ -1761,6 +1852,11 @@
           addNotification(`VM ${data.id || vmId} успешно добавлена`);
           document.getElementById('add-vm-modal').classList.remove('active');
           document.getElementById('add-vm-form').reset();
+          // collapse optional block
+          const optFields = document.getElementById('optional-fields');
+          const optToggle = document.getElementById('optional-toggle');
+          if (optFields) { optFields.style.display = 'none'; optFields.setAttribute('aria-hidden', 'true'); }
+          if (optToggle) optToggle.classList.remove('open');
           refreshAll();
         } else {
           const error = await response.json().catch(()=>({}));
