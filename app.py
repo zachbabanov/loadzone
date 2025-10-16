@@ -236,8 +236,17 @@ def index():
 @app.route('/vms', methods=['GET'])
 def list_vms():
     data = load_data()
+    # ensure new optional fields exist (backwards compatibility)
     for vm in data['vms']:
         vm.setdefault('queue', [])
+        # canonical snake_case fields
+        vm.setdefault('external_ip', None)
+        vm.setdefault('internal_ip', None)
+        # and keep legacy/case-sensitive variants if some clients expect them
+        if 'ExternalIP' not in vm:
+            vm['ExternalIP'] = vm.get('external_ip')
+        if 'InternalIp' not in vm:
+            vm['InternalIp'] = vm.get('internal_ip')
     return jsonify({
         'vms': data['vms'],
         'groups': data.get('groups', [])
@@ -288,6 +297,10 @@ def add_vm():
     vm_id = req.get('id')
     group_id = req.get('group_id')
 
+    # Accept optional IP fields
+    external_ip = req.get('external_ip') or None
+    internal_ip = req.get('internal_ip') or None
+
     if not vm_id:
         return jsonify({'error': 'Не указан идентификатор VM'}), 400
 
@@ -311,7 +324,9 @@ def add_vm():
         'group': group_id if group_exists else None,
         'booked_by': None,
         'expires_at': None,
-        'queue': []
+        'queue': [],
+        'external_ip': external_ip,
+        'internal_ip': internal_ip,
     }
 
     data['vms'].append(new_vm)
@@ -712,7 +727,7 @@ def purge_old_history():
         и cancel_time < now - 1h -> удалить оба (book и cancel), т.к. пара больше не нужна.
     """
     now = datetime.now()
-    cutoff = now - timedelta(seconds=10)
+    cutoff = now - timedelta(hours=1)
     data = load_data()
     changed = False
 
@@ -780,11 +795,13 @@ def purge_old_history():
         app.logger.info("purge_old_history: cleaned outdated booking records")
 
 
+# schedule purge_old_history to run periodically (once per hour)
 try:
-    scheduler.add_job(func=purge_old_history, trigger='interval', seconds=10, id='purge_old_history_job', replace_existing=True)
+    scheduler.add_job(func=purge_old_history, trigger='interval', hours=1, id='purge_old_history_job', replace_existing=True)
 except Exception:
     app.logger.exception("Failed to schedule purge_old_history_job", exc_info=True)
 
+# run it once at startup to tidy up immediately
 try:
     purge_old_history()
 except Exception:
