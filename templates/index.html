@@ -8,15 +8,14 @@
   <link href="https://fonts.googleapis.com/css?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
   <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
   <style>
-    /* --- весь существующий CSS без изменений --- */
     :root {
-      --protey-blue: #0055a4;
-      --protey-dark-blue: #003a75;
-      --protey-light-blue: #f0f7ff;
-      --protey-accent: #007bff;
-      --protey-success: #28a745;
-      --protey-danger: #dc3545;
-      --protey-warning: #ffc107;
+      --protei-blue: #0055a4;
+      --protei-dark-blue: #003a75;
+      --protei-light-blue: #f0f7ff;
+      --protei-accent: #007bff;
+      --protei-success: #28a745;
+      --protei-danger: #dc3545;
+      --protei-warning: #ffc107;
       --text-primary: #212529;
       --text-secondary: #6c757d;
       --border-color: #dee2e6;
@@ -85,7 +84,7 @@
     .logo-icon {
       width: 40px;
       height: 40px;
-      background: var(--protey-blue);
+      background: var(--protei-blue);
       border-radius: 8px;
       display: flex;
       align-items: center;
@@ -102,11 +101,11 @@
     .logo-text {
       font-size: 20px;
       font-weight: 700;
-      color: var(--protey-dark-blue);
+      color: var(--protei-dark-blue);
     }
 
     .logo-text span {
-      color: var(--protey-blue);
+      color: var(--protei-blue);
     }
 
     .search-container {
@@ -127,7 +126,7 @@
 
     .search-container input:focus {
       outline: none;
-      border-color: var(--protey-blue);
+      border-color: var(--protei-blue);
       box-shadow: 0 0 0 3px rgba(0, 85, 164, 0.2);
     }
 
@@ -173,8 +172,8 @@
 
     .nav-item.active {
       background: rgba(0, 85, 164, 0.1);
-      border-left: 3px solid var(--protey-blue);
-      color: var(--protey-blue);
+      border-left: 3px solid var(--protei-blue);
+      color: var(--protei-blue);
     }
 
     .nav-item:hover:not(.active) {
@@ -193,7 +192,7 @@
     }
 
     .nav-badge {
-      background: var(--protey-blue);
+      background: var(--protei-blue);
       color: white;
       font-size: 12px;
       padding: 2px 8px;
@@ -223,7 +222,7 @@
     .user-avatar {
       width: 36px;
       height: 36px;
-      background: var(--protey-blue);
+      background: var(--protei-blue);
       border-radius: 50%;
       display: flex;
       align-items: center;
@@ -272,7 +271,7 @@
     .page-title {
       font-size: 20px;
       font-weight: 600;
-      color: var(--protey-dark-blue);
+      color: var(--protei-dark-blue);
     }
 
     .topbar-actions {
@@ -293,13 +292,13 @@
       border: 1px solid var(--border-color);
       cursor: pointer;
       transition: all 0.2s;
-      fill: var(--protey-blue);
+      fill: var(--protei-blue);
     }
 
     .action-button:hover {
-      background: var(--protey-blue);
+      background: var(--protei-blue);
       fill: white;
-      border-color: var(--protey-blue);
+      border-color: var(--protei-blue);
     }
 
     .content-area {
@@ -328,7 +327,7 @@
     }
 
     .primary-button {
-      background: var(--protey-blue);
+      background: var(--protei-blue);
       color: white;
       border: none;
       border-radius: 8px;
@@ -343,13 +342,13 @@
     }
 
     .primary-button:hover {
-      background: var(--protey-dark-blue);
+      background: var(--protei-dark-blue);
     }
 
     .secondary-button {
       background: var(--bg-secondary);
-      color: var(--protey-blue);
-      border: 1px solid var(--protey-blue);
+      color: var(--protei-blue);
+      border: 1px solid var(--protei-blue);
       border-radius: 8px;
       padding: 10px 20px;
       font-weight: 500;
@@ -392,8 +391,8 @@
     }
 
     .vm-group-badge {
-      background: var(--protey-light-blue);
-      color: var(--protey-blue);
+      background: var(--protei-light-blue);
+      color: var(--protei-blue);
       font-size: 12px;
       padding: 2px 10px;
       border-radius: 20px;
@@ -406,13 +405,13 @@
       box-shadow: var(--card-shadow);
       padding: 20px;
       transition: all 0.3s ease;
-      border-top: 4px solid var(--protey-success);
+      border-top: 4px solid var(--protei-success);
       position: relative;
       overflow: hidden;
     }
 
     .vm-card.booked {
-      border-top-color: var(--protey-danger);
+      border-top-color: var(--protei-danger);
     }
 
     .vm-card:hover {
@@ -442,12 +441,12 @@
 
     .vm-status.free {
       background: rgba(40, 167, 69, 0.1);
-      color: var(--protey-success);
+      color: var(--protei-success);
     }
 
     .vm-status.booked {
       background: rgba(220, 53, 69, 0.1);
-      color: var(--protey-danger);
+      color: var(--protei-danger);
     }
 
     .vm-details {
@@ -475,7 +474,7 @@
     .user-avatar-small {
       width: 24px;
       height: 24px;
-      background: var(--protey-blue);
+      background: var(--protei-blue);
       border-radius: 50%;
       display: inline-flex;
       align-items: center;
@@ -512,9 +511,9 @@
     .vm-action-button svg { width:16px; height:16px; }
 
     .vm-action-button.primary {
-      background: var(--protey-blue);
+      background: var(--protei-blue);
       color: white;
-      border-color: var(--protey-blue);
+      border-color: var(--protei-blue);
     }
 
     .vm-action-button.ghost {
@@ -522,18 +521,18 @@
     }
 
     .book-button {
-      background: var(--protey-blue);
+      background: var(--protei-blue);
       color: white;
     }
 
     .book-button:hover {
-      background: var(--protey-dark-blue);
+      background: var(--protei-dark-blue);
     }
 
     .renew-button {
       background: var(--bg-secondary);
-      color: var(--protey-blue);
-      border: 1px solid var(--protey-blue);
+      color: var(--protei-blue);
+      border: 1px solid var(--protei-blue);
     }
 
     .renew-button:hover {
@@ -542,7 +541,7 @@
 
     .delete-button {
       background: #fff6f6;
-      color: var(--protey-danger);
+      color: var(--protei-danger);
       border: 1px solid rgba(176,42,55,0.08);
     }
 
@@ -566,7 +565,7 @@
 
     .notif {
       background: var(--card-bg);
-      border-left: 4px solid var(--protey-blue);
+      border-left: 4px solid var(--protei-blue);
       padding: 16px;
       margin-top: 16px;
       box-shadow: var(--card-shadow);
@@ -580,7 +579,7 @@
     .notif-icon {
       width: 24px;
       height: 24px;
-      background: var(--protey-light-blue);
+      background: var(--protei-light-blue);
       border-radius: 50%;
       display: flex;
       align-items: center;
@@ -592,7 +591,7 @@
     .notif-icon svg {
       width: 14px;
       height: 14px;
-      fill: var(--protey-blue);
+      fill: var(--protei-blue);
     }
 
     .notif-content {
@@ -689,7 +688,7 @@
     .modal-icon {
       width: 80px;
       height: 80px;
-      background: var(--protey-light-blue);
+      background: var(--protei-light-blue);
       border-radius: 50%;
       display: flex;
       align-items: center;
@@ -700,7 +699,7 @@
     .modal-icon svg {
       width: 40px;
       height: 40px;
-      fill: var(--protey-blue);
+      fill: var(--protei-blue);
     }
 
     .modal-title {
@@ -740,7 +739,7 @@
 
     .form-control:focus {
       outline: none;
-      border-color: var(--protey-blue);
+      border-color: var(--protei-blue);
       box-shadow: 0 0 0 3px rgba(0, 85, 164, 0.2);
     }
 
@@ -765,24 +764,24 @@
     }
 
     .btn-primary {
-      background: var(--protey-blue);
+      background: var(--protei-blue);
       color: white;
       border: none;
     }
 
     .btn-primary:hover {
-      background: var(--protey-dark-blue);
+      background: var(--protei-dark-blue);
     }
 
     .btn-secondary {
       background: var(--bg-secondary);
-      color: var(--protey-blue);
+      color: var(--protei-blue);
       border: 1px solid var(--border-color);
     }
 
     .btn-secondary:hover {
       background: var(--border-color);
-      border-color: var(--protey-blue);
+      border-color: var(--protei-blue);
     }
 
     .form-hint {
@@ -811,7 +810,6 @@
     .optional-toggle.open svg { transform:rotate(90deg); }
     .optional-fields { display:none; margin-bottom:12px; }
     .optional-field-hint { font-size:12px; color:var(--text-secondary); margin-top:4px; }
-    /* маленький отступ для IP строк в карточке */
     .vm-detail .ip-value { font-family:monospace; word-break:break-all; }
   </style>
 </head>
@@ -1145,7 +1143,7 @@
     let groupNames = {};
     let allVms = [];
     let allGroups = [];
-    let currentUserEmail = null; // хранит email текущего пользователя (если авторизован)
+    let currentUserEmail = null;
 
     document.addEventListener('DOMContentLoaded', () => {
       checkAuth();
@@ -1158,12 +1156,10 @@
       createGroupBtn.addEventListener('click', openCreateGroupModal);
       addVmBtn.addEventListener('click', openAddVmModal);
 
-      // Закрытие модалки кнопкой "Отмена" (нижняя кнопка) — уже было
       document.getElementById('modal-cancel').addEventListener('click', () => {
         document.getElementById('modal').classList.remove('active');
       });
 
-      // --- FIX: добавляем обработчик для крестика в модальном окне бронирования
       const modalCloseBtn = document.getElementById('modal-close');
       if (modalCloseBtn) {
         modalCloseBtn.addEventListener('click', () => {
@@ -1196,27 +1192,22 @@
 
       themeToggle.addEventListener('click', toggleTheme);
 
-      // add-to-group modal handlers (from card)
       document.getElementById('add-to-group-close').addEventListener('click', () => closeAddToGroupModal());
       document.getElementById('add-to-group-cancel').addEventListener('click', () => closeAddToGroupModal());
       document.getElementById('add-to-group-form').addEventListener('submit', submitAddToGroup);
 
-      // add-existing modal handlers (from group header) - now multiselect
       document.getElementById('add-existing-close').addEventListener('click', () => closeAddExistingModal());
       document.getElementById('add-existing-cancel').addEventListener('click', () => closeAddExistingModal());
       document.getElementById('add-existing-form').addEventListener('submit', submitAddExistingForm);
 
-      // Close modals on outside click
       document.querySelectorAll('.modal').forEach(modal => {
         modal.addEventListener('click', e => {
           if (e.target === modal) modal.classList.remove('active');
         });
       });
 
-      // search input
       searchInput.addEventListener('input', applyFilters);
 
-      // Optional fields toggle
       const optToggle = document.getElementById('optional-toggle');
       const optFields = document.getElementById('optional-fields');
       if (optToggle && optFields) {
@@ -1235,15 +1226,11 @@
       }
     }
 
-    // socket notifications — показываем только публичные или адресованные текущему пользователю
     socket.on('notification', data => {
-      // если есть поле target, показываем только целевому пользователю
       if (data && data.target && currentUserEmail && data.target !== currentUserEmail) {
-        // игнорируем — не для текущего
         return;
       }
       addNotification((data && data.msg) ? data.msg : 'Уведомление');
-      // обновляем данные при любых системных событиях
       refreshAll();
     });
 
@@ -1278,7 +1265,6 @@
         allVms = data.vms || [];
         allGroups = data.groups || [];
 
-        // make sure every vm has queue array
         allVms.forEach(vm => vm.queue = vm.queue || []);
 
         groupNames = {};
@@ -1288,7 +1274,6 @@
 
         renderFilters(allGroups);
         renderGroups(allVms, allGroups);
-        // update badge count (the "all" badge is created in renderFilters)
         const allBadge = document.getElementById('all-vms-count');
         if (allBadge) allBadge.textContent = allVms.length;
 
@@ -1517,13 +1502,11 @@
 
       const groupName = groupNames[vm.group] || 'Без группы';
 
-      // queue info
       const queue = vm.queue || [];
       const queueCount = queue.length;
       const isInQueue = currentUserEmail ? queue.indexOf(currentUserEmail) !== -1 : false;
       const queuePosition = isInQueue ? queue.indexOf(currentUserEmail) + 1 : null;
 
-      // FIRST in queue display
       let firstInQueueHtml = '';
       if (queueCount > 0) {
         const firstEmail = queue[0];
@@ -1543,7 +1526,6 @@
 
       let actionHtml = '';
 
-      // If VM is free -> show book button
       if (!vm.booked_by) {
         actionHtml += `
           <button class="vm-action-button book-button primary" data-action="book" data-vm="${escapeHtml(vm.id)}">
@@ -1552,7 +1534,6 @@
           </button>
         `;
       } else {
-        // VM is booked -> show renew/cancel only to owner
         if (currentUserEmail && vm.booked_by === currentUserEmail) {
           actionHtml += `
             <button class="vm-action-button renew-button" data-action="renew" data-vm="${escapeHtml(vm.id)}">
@@ -1562,11 +1543,9 @@
           `;
           actionHtml += `<button class="vm-action-button" data-cancel="${escapeHtml(vm.id)}"><svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zM6 11V6h12v5l2 2v1H4v-1l2-2z"/></svg>Отменить бронь</button>`;
         } else {
-          // Not owner: show join queue (for everyone except the owner and if not already in queue)
           if (!isInQueue) {
             actionHtml += `<button class="vm-action-button" data-join="${escapeHtml(vm.id)}"><svg viewBox="0 0 24 24"><path d="M13 11h8v2h-8v8h-2v-8H3v-2h8V3h2v8z"/></svg>Встать в очередь</button>`;
           } else {
-            // if user is in queue, show leave button
             if (currentUserEmail) {
               actionHtml += `<button class="vm-action-button" data-leave="${escapeHtml(vm.id)}"><svg viewBox="0 0 24 24"><path d="M19 13H5v-2h14v2z"/></svg>Выйти из очереди</button>`;
             }
@@ -1574,7 +1553,6 @@
         }
       }
 
-      // common actions: delete, add to group, remove from group
       actionHtml += `<button class="vm-action-button delete-button" data-vm="${escapeHtml(vm.id)}"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>`;
       actionHtml += `<button class="vm-action-button" data-add="${escapeHtml(vm.id)}"><svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>Добавить в группу</button>`;
 
@@ -1582,7 +1560,6 @@
         actionHtml += `<button class="vm-action-button" data-remove="${escapeHtml(vm.id)}" data-group="${vm.group}"><svg viewBox="0 0 24 24"><path d="M19 13H5v-2h14v2z"/></svg>Искл. из группы</button>`;
       }
 
-      // Prepare IP fields (consider multiple possible key variants returned by server)
       const externalIp = vm.external_ip || vm.ExternalIP || vm.externalIp || vm.Externalip || vm.externalIP || null;
       const internalIp = vm.internal_ip || vm.InternalIp || vm.internalIp || vm.InternalIP || null;
 
@@ -1690,7 +1667,6 @@
 
     function openAddVmModal() {
       document.getElementById('add-vm-modal').classList.add('active');
-      // reset optional block to collapsed when opening
       const optFields = document.getElementById('optional-fields');
       const optToggle = document.getElementById('optional-toggle');
       if (optFields) { optFields.style.display = 'none'; optFields.setAttribute('aria-hidden', 'true'); }
@@ -1740,14 +1716,12 @@
       }
     }
 
-    // OPEN Add Existing modal for group (from group header) — now populates multiselect
     function openAddExistingModal(groupId) {
       document.getElementById('add-existing-group-id').value = groupId;
       const sub = document.getElementById('add-existing-sub');
       if (sub) sub.textContent = `Добавление в группу: ${escapeHtml(groupNames[groupId] || String(groupId))}`;
       populateAddExistingSelect(groupId);
       document.getElementById('add-existing-modal').classList.add('active');
-      // focus the select so user can start scrolling/choosing
       setTimeout(() => {
         const sel = document.getElementById('add-existing-select');
         if (sel) sel.focus();
@@ -1759,15 +1733,12 @@
       document.getElementById('add-existing-form').reset();
     }
 
-    // Populate multiselect with all VMs excluding those already in the target group
     function populateAddExistingSelect(groupId) {
       const sel = document.getElementById('add-existing-select');
       if (!sel) return;
       sel.innerHTML = '';
-      // Sort alphabetically for convenience
       const sorted = allVms.slice().sort((a,b) => String(a.id).localeCompare(String(b.id)));
       sorted.forEach(vm => {
-        // show only VMs that are not already in this group
         if (String(vm.group) === String(groupId)) return;
         const opt = document.createElement('option');
         opt.value = vm.id;
@@ -1818,11 +1789,9 @@
       const vmId = document.getElementById('vm-id').value.trim();
       const groupId = document.getElementById('vm-group').value;
 
-      // optional IPs
       const externalRaw = document.getElementById('external-ip') ? document.getElementById('external-ip').value.trim() : '';
       const internalRaw = document.getElementById('internal-ip') ? document.getElementById('internal-ip').value.trim() : '';
 
-      // Normalize: send null if empty (server понимает None/null)
       const externalIp = externalRaw === '' ? null : externalRaw;
       const internalIp = internalRaw === '' ? null : internalRaw;
 
@@ -1852,7 +1821,6 @@
           addNotification(`VM ${data.id || vmId} успешно добавлена`);
           document.getElementById('add-vm-modal').classList.remove('active');
           document.getElementById('add-vm-form').reset();
-          // collapse optional block
           const optFields = document.getElementById('optional-fields');
           const optToggle = document.getElementById('optional-toggle');
           if (optFields) { optFields.style.display = 'none'; optFields.setAttribute('aria-hidden', 'true'); }
@@ -2025,7 +1993,6 @@
         document.getElementById('auth-modal').classList.remove('active');
     };
 
-    // --- Queue actions: join / leave ---
     async function joinQueue(vmId) {
       try {
         const res = await fetch('/queue/join', {
@@ -2041,7 +2008,6 @@
           const err = await res.json().catch(()=>({}));
           addNotification(err.error || 'Ошибка при попытке встать в очередь');
           if (res.status === 401) {
-            // попросим авторизоваться
             document.getElementById('auth-modal').classList.add('active');
           }
         }
@@ -2071,7 +2037,6 @@
       }
     }
 
-    // --- New functions: delete vm, delete group, remove from group, cancel, add existing ---
     async function onDeleteVm(vmId) {
       if (!confirm(`Удалить VM ${vmId}? Это действие необратимо.`)) return;
       try {
