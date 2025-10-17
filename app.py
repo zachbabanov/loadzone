@@ -332,6 +332,78 @@ def add_vm():
     return jsonify(new_vm), 201
 
 
+@app.route('/edit-vm', methods=['POST'])
+def edit_vm():
+    """
+    Редактирование VM (без переименования).
+    Ожидает JSON:
+      { "vm_id": "...", "group_id": <int|null>, "external_ip": "<ip|string>|null", "internal_ip": "<ip|string>|null" }
+    Требуется авторизация (cookie user_email).
+    """
+    user_email = request.cookies.get('user_email')
+    if not user_email:
+        return jsonify({'error': 'Требуется авторизация'}), 401
+
+    req = request.get_json() or {}
+    vm_id = req.get('vm_id')
+    if not vm_id:
+        return jsonify({'error': 'Не указан vm_id'}), 400
+
+    new_group_id = req.get('group_id') if 'group_id' in req else None
+    group_key_present = 'group_id' in req
+
+    external_ip = req.get('external_ip') if 'external_ip' in req else None
+    internal_ip = req.get('internal_ip') if 'internal_ip' in req else None
+    external_key_present = 'external_ip' in req
+    internal_key_present = 'internal_ip' in req
+
+    data = load_data()
+    vm = next((v for v in data['vms'] if v['id'] == vm_id), None)
+    if not vm:
+        return jsonify({'error': 'VM не найдена'}), 404
+
+    old_group = vm.get('group')
+
+    if group_key_present:
+        if new_group_id is None:
+            vm['group'] = None
+            if old_group is not None:
+                for g in data.get('groups', []):
+                    if g['id'] == old_group and vm_id in g.get('vm_ids', []):
+                        g['vm_ids'] = [x for x in g['vm_ids'] if x != vm_id]
+                        break
+        else:
+            found_group = None
+            for g in data.get('groups', []):
+                if g['id'] == new_group_id:
+                    found_group = g
+                    break
+            if not found_group:
+                return jsonify({'error': 'Группа не найдена'}), 404
+
+            if old_group is not None and old_group != new_group_id:
+                for g in data.get('groups', []):
+                    if g['id'] == old_group and vm_id in g.get('vm_ids', []):
+                        g['vm_ids'] = [x for x in g['vm_ids'] if x != vm_id]
+                        break
+
+            vm['group'] = new_group_id
+            if vm_id not in found_group.get('vm_ids', []):
+                found_group.setdefault('vm_ids', []).append(vm_id)
+
+    if external_key_present:
+        vm['external_ip'] = external_ip if external_ip is not None else None
+        vm['ExternalIP'] = vm.get('external_ip')
+
+    if internal_key_present:
+        vm['internal_ip'] = internal_ip if internal_ip is not None else None
+        vm['InternalIp'] = vm.get('internal_ip')
+
+    save_data(data)
+    socketio.emit('notification', {'msg': f"VM {vm_id} изменена — обновлены параметры", 'target': None})
+    return jsonify(vm), 200
+
+
 @app.route('/auth', methods=['POST'])
 def auth():
     email = request.json.get('email', '').strip().lower()
