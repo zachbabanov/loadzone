@@ -810,7 +810,7 @@
     .optional-toggle.open svg { transform:rotate(90deg); }
     .optional-fields { display:none; margin-bottom:12px; }
     .optional-field-hint { font-size:12px; color:var(--text-secondary); margin-top:4px; }
-    .vm-detail .ip-value { font-family:monospace; word-break:break-all; }
+    .vm-detail .ip-value { font-family:monospace; word-break:break-all; cursor: pointer }
   </style>
 </head>
 <body>
@@ -1145,6 +1145,15 @@
     let allGroups = [];
     let currentUserEmail = null;
 
+    function copyText(element) {
+      const textToCopy = element.innerText.trim();
+      const tempInput = document.createElement('textarea');
+      tempInput.value = textToCopy;
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      document.execCommand('copy');
+      document.body.removeChild(tempInput);
+    }
     document.addEventListener('DOMContentLoaded', () => {
       checkAuth();
       initTheme();
@@ -1566,14 +1575,14 @@
       const externalHtml = externalIp ? `
         <div class="vm-detail">
           <div class="detail-label">External IP</div>
-          <div class="detail-value ip-value">${escapeHtml(externalIp)}</div>
+          <div class="detail-value ip-value" onclick="copyText(this)">${escapeHtml(externalIp)}</div>
         </div>
       ` : '';
 
       const internalHtml = internalIp ? `
         <div class="vm-detail">
           <div class="detail-label">Internal IP</div>
-          <div class="detail-value ip-value">${escapeHtml(internalIp)}</div>
+          <div class="detail-value ip-value" onclick="copyText(this)">${escapeHtml(internalIp)}</div>
         </div>
       ` : '';
 
