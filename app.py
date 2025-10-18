@@ -240,10 +240,6 @@ def list_vms():
         vm.setdefault('queue', [])
         vm.setdefault('external_ip', None)
         vm.setdefault('internal_ip', None)
-        if 'ExternalIP' not in vm:
-            vm['ExternalIP'] = vm.get('external_ip')
-        if 'InternalIp' not in vm:
-            vm['InternalIp'] = vm.get('internal_ip')
     return jsonify({
         'vms': data['vms'],
         'groups': data.get('groups', [])
@@ -393,11 +389,9 @@ def edit_vm():
 
     if external_key_present:
         vm['external_ip'] = external_ip if external_ip is not None else None
-        vm['ExternalIP'] = vm.get('external_ip')
 
     if internal_key_present:
         vm['internal_ip'] = internal_ip if internal_ip is not None else None
-        vm['InternalIp'] = vm.get('internal_ip')
 
     save_data(data)
     socketio.emit('notification', {'msg': f"VM {vm_id} изменена — обновлены параметры", 'target': None})
