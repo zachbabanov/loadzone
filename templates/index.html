@@ -837,7 +837,6 @@
       <nav class="sidebar-nav">
         <div class="nav-title">Группы</div>
         <ul class="nav-list" id="group-filters">
-          <!-- "all" filter will be generated dynamically on renderFilters -->
         </ul>
       </nav>
 
@@ -1001,7 +1000,7 @@
           <svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
           <div>Дополнительные параметры (опционально)</div>
         </div>
-        <div class="optional-fields" id="optional-fields" aria-hidden="true">
+        <div class="optional-fields" id="optional-fields" aria-hidden="true" style="display:none;">
           <div class="form-group">
             <label class="form-label" for="external-ip">External IP <span style="font-weight:400;color:var(--text-secondary);font-size:13px;">(опционально)</span></label>
             <input type="text" id="external-ip" class="form-control" placeholder="например: 198.51.100.10">
@@ -1017,6 +1016,70 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" id="add-vm-cancel">Отмена</button>
           <button type="submit" class="btn btn-primary">Добавить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- edit vm modal (иконка такая же, optional fields исправлены) -->
+  <div id="edit-vm-modal" class="modal">
+    <div class="modal-content">
+      <button class="modal-close" id="edit-vm-close">
+        <svg viewBox="0 0 24 24">
+          <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+        </svg>
+      </button>
+
+      <div class="modal-header">
+        <div class="modal-icon">
+          <!-- та же иконка, что в add-vm-modal -->
+          <svg width="120" height="100" viewBox="0 0 100 80">
+  <path d="M10,10 h80 a10,10 0 0 1 10,10 v40 a10,10 0 0 1 -10,10 h-80 a10,10 0 0 1 -10,-10 v-40 a10,10 0 0 1 10,-10 z"
+        fill="#3182ce" />
+
+  <path d="M20,25 h60 M20,40 h60 M20,55 h60"
+        stroke="#ebf8ff"
+        stroke-width="3" />
+
+  <path d="M75,65 a5,5 0 1 1 0,-10 a5,5 0 1 1 0,10 z"
+        fill="#90edb3" />
+          </svg>
+        </div>
+        <h2 class="modal-title">Редактировать VM</h2>
+        <p class="modal-subtitle" id="edit-vm-sub">Измените группу или IP</p>
+      </div>
+
+      <form id="edit-vm-form">
+        <input type="hidden" id="edit-vm-id">
+
+        <div class="form-group">
+          <label class="form-label" for="edit-vm-group">Группа (опционально)</label>
+          <select id="edit-vm-group" class="form-control">
+            <option value="">Без группы</option>
+          </select>
+        </div>
+
+        <!-- Optional collapsible IP fields (edit) -->
+        <div class="optional-toggle" id="optional-toggle-edit" title="Показать дополнительные параметры">
+          <svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+          <div>Дополнительные параметры (опционально)</div>
+        </div>
+        <div class="optional-fields" id="optional-fields-edit" aria-hidden="true" style="display:none;">
+          <div class="form-group">
+            <label class="form-label" for="edit-external-ip">External IP <span style="font-weight:400;color:var(--text-secondary);font-size:13px;">(опционально)</span></label>
+            <input type="text" id="edit-external-ip" class="form-control" placeholder="например: 198.51.100.10">
+            <div class="optional-field-hint">Внешний IP — показывается в карточке VM, если заполнен</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="edit-internal-ip">Internal IP <span style="font-weight:400;color:var(--text-secondary);font-size:13px;">(опционально)</span></label>
+            <input type="text" id="edit-internal-ip" class="form-control" placeholder="например: 192.168.1.10">
+            <div class="optional-field-hint">Внутренний IP — показывается в карточке VM, если заполнен</div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="edit-vm-cancel">Отмена</button>
+          <button type="submit" class="btn btn-primary">Сохранить</button>
         </div>
       </form>
     </div>
@@ -1063,46 +1126,19 @@
     </div>
   </div>
 
-  <!-- add single VM to group modal (from VM card) -->
-  <div id="add-to-group-modal" class="modal">
-    <div class="modal-content">
-      <button class="modal-close" id="add-to-group-close">
-        <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-      </button>
-      <div class="modal-header">
-        <div class="modal-icon">
-          <svg viewBox="0 0 24 24"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z"/></svg>
-        </div>
-        <h2 class="modal-title">Добавить VM в группу</h2>
-        <p class="modal-subtitle" id="add-to-group-vmid">VM ID</p>
-      </div>
-
-      <form id="add-to-group-form">
-        <input type="hidden" id="add-to-group-vm">
-        <div class="form-group">
-          <label class="form-label" for="add-to-group-select">Выберите группу</label>
-          <select id="add-to-group-select" class="form-control" required>
-            <option value="">-- выбрать группу --</option>
-          </select>
-        </div>
-
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" id="add-to-group-cancel">Отмена</button>
-          <button type="submit" class="btn btn-primary">Добавить</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- NEW: add existing VMs to group modal (from group header) - now MULTISELECT -->
+  <!-- add existing modal -->
   <div id="add-existing-modal" class="modal">
     <div class="modal-content">
       <button class="modal-close" id="add-existing-close">
-        <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        <svg viewBox="0 0 24 24">
+          <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+        </svg>
       </button>
       <div class="modal-header">
         <div class="modal-icon">
-          <svg viewBox="0 0 24 24"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z"/></svg>
+          <svg viewBox="0 0 24 24">
+            <path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z"/>
+          </svg>
         </div>
         <h2 class="modal-title">Добавить существующие VM в группу</h2>
         <p class="modal-subtitle" id="add-existing-sub">Выберите VM из списка</p>
@@ -1113,7 +1149,6 @@
         <div class="form-group">
           <label class="form-label" for="add-existing-select">Доступные VM</label>
           <select id="add-existing-select" class="form-control" multiple style="height: 220px;">
-            <!-- options filled dynamically: показываются VM, которые НЕ в текущей группе -->
           </select>
           <div class="form-hint">Выберите одну или несколько VM, затем нажмите «Добавить».</div>
         </div>
@@ -1145,15 +1180,6 @@
     let allGroups = [];
     let currentUserEmail = null;
 
-    function copyText(element) {
-      const textToCopy = element.innerText.trim();
-      const tempInput = document.createElement('textarea');
-      tempInput.value = textToCopy;
-      document.body.appendChild(tempInput);
-      tempInput.select();
-      document.execCommand('copy');
-      document.body.removeChild(tempInput);
-    }
     document.addEventListener('DOMContentLoaded', () => {
       checkAuth();
       initTheme();
@@ -1162,52 +1188,80 @@
     });
 
     function setupEventListeners() {
-      createGroupBtn.addEventListener('click', openCreateGroupModal);
-      addVmBtn.addEventListener('click', openAddVmModal);
+      if (createGroupBtn) createGroupBtn.addEventListener('click', openCreateGroupModal);
+      if (addVmBtn) addVmBtn.addEventListener('click', openAddVmModal);
 
-      document.getElementById('modal-cancel').addEventListener('click', () => {
-        document.getElementById('modal').classList.remove('active');
+      const modalCancel = document.getElementById('modal-cancel');
+      if (modalCancel) modalCancel.addEventListener('click', () => {
+        const m = document.getElementById('modal');
+        if (m) m.classList.remove('active');
       });
 
       const modalCloseBtn = document.getElementById('modal-close');
       if (modalCloseBtn) {
         modalCloseBtn.addEventListener('click', () => {
-          document.getElementById('modal').classList.remove('active');
+          const m = document.getElementById('modal');
+          if (m) m.classList.remove('active');
         });
       }
 
-      document.getElementById('user-profile').addEventListener('click', () => {
-        document.getElementById('auth-modal').classList.add('active');
+      const userProfile = document.getElementById('user-profile');
+      if (userProfile) userProfile.addEventListener('click', () => {
+        const am = document.getElementById('auth-modal');
+        if (am) am.classList.add('active');
       });
 
-      document.getElementById('add-vm-close').addEventListener('click', () => {
-        document.getElementById('add-vm-modal').classList.remove('active');
+      const addVmClose = document.getElementById('add-vm-close');
+      if (addVmClose) addVmClose.addEventListener('click', () => {
+        const m = document.getElementById('add-vm-modal');
+        if (m) m.classList.remove('active');
       });
 
-      document.getElementById('create-group-close').addEventListener('click', () => {
-        document.getElementById('create-group-modal').classList.remove('active');
+      const createGroupClose = document.getElementById('create-group-close');
+      if (createGroupClose) createGroupClose.addEventListener('click', () => {
+        const m = document.getElementById('create-group-modal');
+        if (m) m.classList.remove('active');
       });
 
-      document.getElementById('add-vm-cancel').addEventListener('click', () => {
-        document.getElementById('add-vm-modal').classList.remove('active');
+      const addVmCancel = document.getElementById('add-vm-cancel');
+      if (addVmCancel) addVmCancel.addEventListener('click', () => {
+        const m = document.getElementById('add-vm-modal');
+        if (m) m.classList.remove('active');
       });
 
-      document.getElementById('create-group-cancel').addEventListener('click', () => {
-        document.getElementById('create-group-modal').classList.remove('active');
+      const createGroupCancel = document.getElementById('create-group-cancel');
+      if (createGroupCancel) createGroupCancel.addEventListener('click', () => {
+        const m = document.getElementById('create-group-modal');
+        if (m) m.classList.remove('active');
       });
 
-      document.getElementById('add-vm-form').addEventListener('submit', addNewVm);
-      document.getElementById('create-group-form').addEventListener('submit', createNewGroup);
+      const addVmForm = document.getElementById('add-vm-form');
+      if (addVmForm) addVmForm.addEventListener('submit', addNewVm);
 
-      themeToggle.addEventListener('click', toggleTheme);
+      const createGroupForm = document.getElementById('create-group-form');
+      if (createGroupForm) createGroupForm.addEventListener('submit', createNewGroup);
 
-      document.getElementById('add-to-group-close').addEventListener('click', () => closeAddToGroupModal());
-      document.getElementById('add-to-group-cancel').addEventListener('click', () => closeAddToGroupModal());
-      document.getElementById('add-to-group-form').addEventListener('submit', submitAddToGroup);
+      if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
 
-      document.getElementById('add-existing-close').addEventListener('click', () => closeAddExistingModal());
-      document.getElementById('add-existing-cancel').addEventListener('click', () => closeAddExistingModal());
-      document.getElementById('add-existing-form').addEventListener('submit', submitAddExistingForm);
+      const editClose = document.getElementById('edit-vm-close');
+      if (editClose) editClose.addEventListener('click', () => closeEditVmModal());
+      const editCancel = document.getElementById('edit-vm-cancel');
+      if (editCancel) editCancel.addEventListener('click', () => closeEditVmModal());
+      const editForm = document.getElementById('edit-vm-form');
+      if (editForm) editForm.addEventListener('submit', submitEditVmForm);
+
+      const addExistingClose = document.getElementById('add-existing-close');
+      if (addExistingClose) addExistingClose.addEventListener('click', () => closeAddExistingModal());
+      const addExistingCancel = document.getElementById('add-existing-cancel');
+      if (addExistingCancel) addExistingCancel.addEventListener('click', () => closeAddExistingModal());
+      const addExistingForm = document.getElementById('add-existing-form');
+      if (addExistingForm) addExistingForm.addEventListener('submit', submitAddExistingForm);
+
+      const optToggle = document.getElementById('optional-toggle');
+      if (optToggle) optToggle.addEventListener('click', () => toggleOptionalBlock('optional-fields', 'optional-toggle'));
+
+      const optToggleEdit = document.getElementById('optional-toggle-edit');
+      if (optToggleEdit) optToggleEdit.addEventListener('click', () => toggleOptionalBlock('optional-fields-edit', 'optional-toggle-edit'));
 
       document.querySelectorAll('.modal').forEach(modal => {
         modal.addEventListener('click', e => {
@@ -1215,23 +1269,22 @@
         });
       });
 
-      searchInput.addEventListener('input', applyFilters);
+      if (searchInput) searchInput.addEventListener('input', applyFilters);
+    }
 
-      const optToggle = document.getElementById('optional-toggle');
-      const optFields = document.getElementById('optional-fields');
-      if (optToggle && optFields) {
-        optToggle.addEventListener('click', () => {
-          const open = optFields.style.display === 'block';
-          if (open) {
-            optFields.style.display = 'none';
-            optFields.setAttribute('aria-hidden', 'true');
-            optToggle.classList.remove('open');
-          } else {
-            optFields.style.display = 'block';
-            optFields.setAttribute('aria-hidden', 'false');
-            optToggle.classList.add('open');
-          }
-        });
+    function toggleOptionalBlock(fieldsId, toggleId) {
+      const fields = document.getElementById(fieldsId);
+      const toggle = document.getElementById(toggleId);
+      if (!fields || !toggle) return;
+      const isHidden = fields.getAttribute('aria-hidden') === 'true' || fields.style.display === 'none' || getComputedStyle(fields).display === 'none';
+      if (isHidden) {
+        fields.style.display = 'block';
+        fields.setAttribute('aria-hidden', 'false');
+        toggle.classList.add('open');
+      } else {
+        fields.style.display = 'none';
+        fields.setAttribute('aria-hidden', 'true');
+        toggle.classList.remove('open');
       }
     }
 
@@ -1275,11 +1328,8 @@
         allGroups = data.groups || [];
 
         allVms.forEach(vm => vm.queue = vm.queue || []);
-
         groupNames = {};
-        allGroups.forEach(g => {
-          groupNames[g.id] = g.name;
-        });
+        allGroups.forEach(g => { groupNames[g.id] = g.name; });
 
         renderFilters(allGroups);
         renderGroups(allVms, allGroups);
@@ -1289,6 +1339,7 @@
         updateGroupSelect();
         updateVmSelect();
         updateAddToGroupSelect();
+        updateEditGroupSelect();
       } catch (error) {
         console.error('Ошибка при обновлении данных:', error);
         addNotification('Ошибка загрузки данных');
@@ -1299,7 +1350,18 @@
       const select = document.getElementById('vm-group');
       if (!select) return;
       select.innerHTML = '<option value="">Без группы</option>';
+      allGroups.forEach(group => {
+        const option = document.createElement('option');
+        option.value = group.id;
+        option.textContent = group.name;
+        select.appendChild(option);
+      });
+    }
 
+    function updateEditGroupSelect() {
+      const select = document.getElementById('edit-vm-group');
+      if (!select) return;
+      select.innerHTML = '<option value="">Без группы</option>';
       allGroups.forEach(group => {
         const option = document.createElement('option');
         option.value = group.id;
@@ -1312,7 +1374,6 @@
       const select = document.getElementById('group-vms');
       if (!select) return;
       select.innerHTML = '';
-
       allVms.forEach(vm => {
         const option = document.createElement('option');
         option.value = vm.id;
@@ -1357,7 +1418,6 @@
         const li = document.createElement('li');
         li.className = 'nav-item';
         li.dataset.group = g.id;
-
         li.innerHTML = `
           <svg class="nav-icon" viewBox="0 0 24 24">
             <path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z"/>
@@ -1365,14 +1425,12 @@
           <span class="nav-text">${escapeHtml(g.name)}</span>
           <span class="nav-badge">${(g.vm_ids||[]).length}</span>
         `;
-
         li.onclick = () => {
           filtersList.querySelectorAll('.nav-item').forEach(x => x.classList.remove('active'));
           li.classList.add('active');
           pageTitle.textContent = g.name;
           applyFilters();
         };
-
         filtersList.appendChild(li);
       });
     }
@@ -1563,13 +1621,9 @@
       }
 
       actionHtml += `<button class="vm-action-button delete-button" data-vm="${escapeHtml(vm.id)}"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>`;
-      actionHtml += `<button class="vm-action-button" data-add="${escapeHtml(vm.id)}"><svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>Добавить в группу</button>`;
+      actionHtml += `<button class="vm-action-button edit-button" data-edit="${escapeHtml(vm.id)}"><svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/></svg>Редактировать</button>`;
 
-      if (vm.group) {
-        actionHtml += `<button class="vm-action-button" data-remove="${escapeHtml(vm.id)}" data-group="${vm.group}"><svg viewBox="0 0 24 24"><path d="M19 13H5v-2h14v2z"/></svg>Искл. из группы</button>`;
-      }
-
-      const externalIp = vm.external_ip || vm.ExternalIP || vm.externalIp || vm.Externalip || vm.externalIP || null;
+      const externalIp = vm.external_ip || vm.ExternalIP || vm.externalIp || vm.externalIP || vm.Externalip || null;
       const internalIp = vm.internal_ip || vm.InternalIp || vm.internalIp || vm.InternalIP || null;
 
       const externalHtml = externalIp ? `
@@ -1649,14 +1703,11 @@
       const deleteBtn = card.querySelector('.delete-button');
       if (deleteBtn) deleteBtn.addEventListener('click', (e) => { e.stopPropagation(); onDeleteVm(vm.id); });
 
-      const removeBtn = card.querySelector('[data-remove]');
-      if (removeBtn) removeBtn.addEventListener('click', (e) => { e.stopPropagation(); onRemoveFromGroup(vm.id, removeBtn.dataset.group); });
-
       const cancelBtn = card.querySelector('[data-cancel]');
       if (cancelBtn) cancelBtn.addEventListener('click', (e) => { e.stopPropagation(); onCancel(vm.id); });
 
-      const addBtn = card.querySelector('[data-add]');
-      if (addBtn) addBtn.addEventListener('click', (e) => { e.stopPropagation(); openAddToGroupModal(vm.id); });
+      const editBtn = card.querySelector('[data-edit]');
+      if (editBtn) editBtn.addEventListener('click', (e) => { e.stopPropagation(); openEditVmModal(vm); });
 
       const joinBtn = card.querySelector('[data-join]');
       if (joinBtn) joinBtn.addEventListener('click', (e) => { e.stopPropagation(); joinQueue(vm.id); });
@@ -1668,42 +1719,105 @@
     }
 
     function openModal(vmId, actionType = 'book') {
-      document.getElementById('form-vm-id').value = vmId;
-      document.getElementById('modal-vm-id').textContent = vmId;
-      document.getElementById('modal').classList.add('active');
-      document.getElementById('booking-form').dataset.action = actionType;
+      const formVmId = document.getElementById('form-vm-id');
+      if (formVmId) formVmId.value = vmId;
+      const vmIdEl = document.getElementById('modal-vm-id');
+      if (vmIdEl) vmIdEl.textContent = vmId;
+      const modal = document.getElementById('modal');
+      if (modal) modal.classList.add('active');
+      const bookingForm = document.getElementById('booking-form');
+      if (bookingForm) bookingForm.dataset.action = actionType;
     }
 
     function openAddVmModal() {
-      document.getElementById('add-vm-modal').classList.add('active');
+      const modal = document.getElementById('add-vm-modal');
+      if (modal) modal.classList.add('active');
       const optFields = document.getElementById('optional-fields');
       const optToggle = document.getElementById('optional-toggle');
       if (optFields) { optFields.style.display = 'none'; optFields.setAttribute('aria-hidden', 'true'); }
       if (optToggle) optToggle.classList.remove('open');
-      document.getElementById('vm-id').focus();
+      const idInput = document.getElementById('vm-id');
+      if (idInput) idInput.focus();
     }
 
-    function openCreateGroupModal() {
-      document.getElementById('create-group-modal').classList.add('active');
-      document.getElementById('group-name').focus();
+    function openEditVmModal(vm) {
+      const idInput = document.getElementById('edit-vm-id');
+      if (idInput) idInput.value = vm.id;
+      const gid = vm.group ? String(vm.group) : '';
+      const sel = document.getElementById('edit-vm-group');
+      if (sel) sel.value = gid;
+
+      const external = vm.external_ip || vm.ExternalIP || vm.externalIp || vm.externalIP || '';
+      const internal = vm.internal_ip || vm.InternalIp || vm.internalIp || vm.InternalIP || '';
+      const extInput = document.getElementById('edit-external-ip');
+      const intInput = document.getElementById('edit-internal-ip');
+      if (extInput) extInput.value = external || '';
+      if (intInput) intInput.value = internal || '';
+
+      const optFields = document.getElementById('optional-fields-edit');
+      const optToggle = document.getElementById('optional-toggle-edit');
+      if (optFields) {
+        if (external || internal) {
+          optFields.style.display = 'block';
+          optFields.setAttribute('aria-hidden', 'false');
+          if (optToggle) optToggle.classList.add('open');
+        } else {
+          optFields.style.display = 'none';
+          optFields.setAttribute('aria-hidden', 'true');
+          if (optToggle) optToggle.classList.remove('open');
+        }
+      }
+      const modal = document.getElementById('edit-vm-modal');
+      if (modal) modal.classList.add('active');
     }
 
-    function openAddToGroupModal(vmId) {
-      document.getElementById('add-to-group-vm').value = vmId;
-      document.getElementById('add-to-group-vmid').textContent = vmId;
-      updateAddToGroupSelect();
-      document.getElementById('add-to-group-modal').classList.add('active');
+    function closeEditVmModal() {
+      const modal = document.getElementById('edit-vm-modal');
+      if (modal) modal.classList.remove('active');
+      const form = document.getElementById('edit-vm-form');
+      if (form) form.reset();
+      const optFields = document.getElementById('optional-fields-edit');
+      const optToggle = document.getElementById('optional-toggle-edit');
+      if (optFields) { optFields.style.display = 'none'; optFields.setAttribute('aria-hidden', 'true'); }
+      if (optToggle) optToggle.classList.remove('open');
     }
 
-    function closeAddToGroupModal() {
-      document.getElementById('add-to-group-modal').classList.remove('active');
-      document.getElementById('add-to-group-form').reset();
+    async function submitEditVmForm(e) {
+      e.preventDefault();
+      const vmId = document.getElementById('edit-vm-id').value;
+      const groupIdVal = document.getElementById('edit-vm-group').value;
+      const groupId = groupIdVal ? parseInt(groupIdVal) : null;
+      const externalIp = document.getElementById('edit-external-ip').value.trim();
+      const internalIp = document.getElementById('edit-internal-ip').value.trim();
+
+      const payload = { vm_id: vmId, group_id: groupIdVal === '' ? null : groupId };
+      payload.external_ip = (externalIp === '') ? null : externalIp;
+      payload.internal_ip = (internalIp === '') ? null : internalIp;
+
+      try {
+        const res = await fetch('/edit-vm', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          addNotification('VM обновлена');
+          closeEditVmModal();
+          refreshAll();
+        } else {
+          const err = await res.json().catch(()=>({}));
+          addNotification(err.error || 'Ошибка при обновлении VM');
+        }
+      } catch (err) {
+        console.error('edit-vm error', err);
+        addNotification('Ошибка при обновлении VM');
+      }
     }
 
     async function submitAddToGroup(e) {
       e.preventDefault();
-      const vmId = document.getElementById('add-to-group-vm').value;
-      const gid = document.getElementById('add-to-group-select').value;
+      const vmId = document.getElementById('add-to-group-vm') ? document.getElementById('add-to-group-vm').value : null;
+      const gid = document.getElementById('add-to-group-select') ? document.getElementById('add-to-group-select').value : null;
       if (!gid) { addNotification('Выберите группу'); return; }
       try {
         const res = await fetch(`/groups/${gid}/add-existing-vms`, {
@@ -1725,12 +1839,36 @@
       }
     }
 
+    function openCreateGroupModal() {
+      const modal = document.getElementById('create-group-modal');
+      if (modal) modal.classList.add('active');
+      const name = document.getElementById('group-name');
+      if (name) name.focus();
+    }
+
+    function openAddToGroupModal(vmId) {
+      if (document.getElementById('add-to-group-vm')) document.getElementById('add-to-group-vm').value = vmId;
+      if (document.getElementById('add-to-group-vmid')) document.getElementById('add-to-group-vmid').textContent = vmId;
+      updateAddToGroupSelect();
+      const modal = document.getElementById('add-to-group-modal');
+      if (modal) modal.classList.add('active');
+    }
+
+    function closeAddToGroupModal() {
+      const modal = document.getElementById('add-to-group-modal');
+      if (modal) modal.classList.remove('active');
+      const form = document.getElementById('add-to-group-form');
+      if (form) form.reset();
+    }
+
     function openAddExistingModal(groupId) {
-      document.getElementById('add-existing-group-id').value = groupId;
+      const el = document.getElementById('add-existing-group-id');
+      if (el) el.value = groupId;
       const sub = document.getElementById('add-existing-sub');
       if (sub) sub.textContent = `Добавление в группу: ${escapeHtml(groupNames[groupId] || String(groupId))}`;
       populateAddExistingSelect(groupId);
-      document.getElementById('add-existing-modal').classList.add('active');
+      const modal = document.getElementById('add-existing-modal');
+      if (modal) modal.classList.add('active');
       setTimeout(() => {
         const sel = document.getElementById('add-existing-select');
         if (sel) sel.focus();
@@ -1738,8 +1876,10 @@
     }
 
     function closeAddExistingModal() {
-      document.getElementById('add-existing-modal').classList.remove('active');
-      document.getElementById('add-existing-form').reset();
+      const modal = document.getElementById('add-existing-modal');
+      if (modal) modal.classList.remove('active');
+      const form = document.getElementById('add-existing-form');
+      if (form) form.reset();
     }
 
     function populateAddExistingSelect(groupId) {
@@ -1765,7 +1905,7 @@
 
     async function submitAddExistingForm(e) {
       e.preventDefault();
-      const gid = document.getElementById('add-existing-group-id').value;
+      const gid = document.getElementById('add-existing-group-id') ? document.getElementById('add-existing-group-id').value : null;
       const sel = document.getElementById('add-existing-select');
       if (!gid) { addNotification('Не выбрана группа'); return; }
       if (!sel) { addNotification('Элемент списка не найден'); return; }
@@ -1794,42 +1934,31 @@
 
     async function addNewVm(e) {
       e.preventDefault();
-
       const vmId = document.getElementById('vm-id').value.trim();
       const groupId = document.getElementById('vm-group').value;
+      const externalIp = document.getElementById('external-ip') ? document.getElementById('external-ip').value.trim() : '';
+      const internalIp = document.getElementById('internal-ip') ? document.getElementById('internal-ip').value.trim() : '';
 
-      const externalRaw = document.getElementById('external-ip') ? document.getElementById('external-ip').value.trim() : '';
-      const internalRaw = document.getElementById('internal-ip') ? document.getElementById('internal-ip').value.trim() : '';
-
-      const externalIp = externalRaw === '' ? null : externalRaw;
-      const internalIp = internalRaw === '' ? null : internalRaw;
-
-      if (!vmId) {
-        addNotification('Введите идентификатор VM');
-        return;
-      }
+      if (!vmId) { addNotification('Введите идентификатор VM'); return; }
 
       try {
-        const payload = {
-          id: vmId,
-          group_id: groupId ? parseInt(groupId) : null,
-          external_ip: externalIp,
-          internal_ip: internalIp
-        };
+        const payload = { id: vmId, group_id: groupId ? parseInt(groupId) : null };
+        if (externalIp) payload.external_ip = externalIp;
+        if (internalIp) payload.internal_ip = internalIp;
 
         const response = await fetch('/add-vm', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
 
         if (response.ok) {
           const data = await response.json().catch(()=>({id:vmId}));
           addNotification(`VM ${data.id || vmId} успешно добавлена`);
-          document.getElementById('add-vm-modal').classList.remove('active');
-          document.getElementById('add-vm-form').reset();
+          const modal = document.getElementById('add-vm-modal');
+          if (modal) modal.classList.remove('active');
+          const form = document.getElementById('add-vm-form');
+          if (form) form.reset();
           const optFields = document.getElementById('optional-fields');
           const optToggle = document.getElementById('optional-toggle');
           if (optFields) { optFields.style.display = 'none'; optFields.setAttribute('aria-hidden', 'true'); }
@@ -1847,33 +1976,26 @@
 
     async function createNewGroup(e) {
       e.preventDefault();
-
       const groupName = document.getElementById('group-name').value.trim();
       const vmSelect = document.getElementById('group-vms');
       const selectedVmIds = vmSelect ? Array.from(vmSelect.selectedOptions).map(opt => opt.value) : [];
 
-      if (!groupName) {
-        addNotification('Введите название группы');
-        return;
-      }
+      if (!groupName) { addNotification('Введите название группы'); return; }
 
       try {
         const response = await fetch('/groups', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            name: groupName,
-            vm_ids: selectedVmIds
-          })
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: groupName, vm_ids: selectedVmIds })
         });
 
         if (response.ok) {
           const data = await response.json().catch(()=>({name:groupName}));
           addNotification(`Группа "${data.name || groupName}" успешно создана`);
-          document.getElementById('create-group-modal').classList.remove('active');
-          document.getElementById('create-group-form').reset();
+          const modal = document.getElementById('create-group-modal');
+          if (modal) modal.classList.remove('active');
+          const form = document.getElementById('create-group-form');
+          if (form) form.reset();
           refreshAll();
         } else {
           const error = await response.json().catch(()=>({}));
@@ -1905,7 +2027,8 @@
           addNotification('Операция выполнена');
         }
 
-        document.getElementById('modal').classList.remove('active');
+        const modal = document.getElementById('modal');
+        if (modal) modal.classList.remove('active');
         refreshAll();
       } catch (error) {
         console.error('Ошибка при бронировании:', error);
@@ -1916,7 +2039,6 @@
     function addNotification(msg) {
       const el = document.createElement('div');
       el.className = 'notif';
-
       el.innerHTML = `
         <div class="notif-icon">
           <svg viewBox="0 0 24 24">
@@ -1928,7 +2050,6 @@
           <div class="notif-message">${escapeHtml(msg)}</div>
         </div>
       `;
-
       document.getElementById('notifications').prepend(el);
       setTimeout(() => el.remove(), 10000);
     }
@@ -1941,24 +2062,25 @@
         if (data.authenticated) {
           currentUserEmail = data.email;
           updateUserProfile(data.email);
-          document.querySelector('.user-profile').style.display = 'flex';
+          const up = document.querySelector('.user-profile');
+          if (up) up.style.display = 'flex';
         } else {
           currentUserEmail = null;
-          document.getElementById('auth-modal').classList.add('active');
+          const am = document.getElementById('auth-modal');
+          if (am) am.classList.add('active');
         }
       } catch (error) {
         console.error('Ошибка проверки авторизации:', error);
         currentUserEmail = null;
-        document.getElementById('auth-modal').classList.add('active');
+        const am = document.getElementById('auth-modal');
+        if (am) am.classList.add('active');
       }
     }
 
     function updateUserProfile(email) {
       if (!email) return;
-
       const name = email.split('@')[0];
       const initial = name.charAt(0).toUpperCase();
-
       userAvatar.textContent = initial;
       userName.textContent = name;
       userEmailEl.textContent = email;
@@ -1981,7 +2103,8 @@
         });
 
         if (response.ok) {
-          document.getElementById('auth-modal').classList.remove('active');
+          const am = document.getElementById('auth-modal');
+          if (am) am.classList.remove('active');
           await checkAuth();
           refreshAll();
         } else {
@@ -2017,7 +2140,8 @@
           const err = await res.json().catch(()=>({}));
           addNotification(err.error || 'Ошибка при попытке встать в очередь');
           if (res.status === 401) {
-            document.getElementById('auth-modal').classList.add('active');
+            const am = document.getElementById('auth-modal');
+            if (am) am.classList.add('active');
           }
         }
       } catch (e) {
@@ -2133,6 +2257,39 @@
     }
 
     function escapeHtml(s){ return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c])); }
+
+    async function copyText(el) {
+      const txt = (el.textContent || el.innerText || '').trim();
+      if (!txt) { addNotification('Нечего копировать'); return; }
+
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(txt);
+          addNotification('Скопировано: ' + txt);
+          return;
+        }
+      } catch (err) {}
+
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = txt;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        ta.setSelectionRange(0, ta.value.length);
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        if (ok) {
+          addNotification('Скопировано: ' + txt);
+        } else {
+          addNotification('Не удалось скопировать в буфер обмена');
+        }
+      } catch (err) {
+        console.error('copy fallback failed', err);
+        addNotification('Не удалось скопировать в буфер обмена');
+      }
+    }
   </script>
 </body>
 </html>
