@@ -1623,8 +1623,8 @@
       actionHtml += `<button class="vm-action-button delete-button" data-vm="${escapeHtml(vm.id)}"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>`;
       actionHtml += `<button class="vm-action-button edit-button" data-edit="${escapeHtml(vm.id)}"><svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/></svg>Редактировать</button>`;
 
-      const externalIp = vm.external_ip || vm.ExternalIP || vm.externalIp || vm.externalIP || vm.Externalip || null;
-      const internalIp = vm.internal_ip || vm.InternalIp || vm.internalIp || vm.InternalIP || null;
+      const externalIp = vm.external_ip || null;
+      const internalIp = vm.internal_ip || null;
 
       const externalHtml = externalIp ? `
         <div class="vm-detail">
@@ -1747,8 +1747,8 @@
       const sel = document.getElementById('edit-vm-group');
       if (sel) sel.value = gid;
 
-      const external = vm.external_ip || vm.ExternalIP || vm.externalIp || vm.externalIP || '';
-      const internal = vm.internal_ip || vm.InternalIp || vm.internalIp || vm.InternalIP || '';
+      const external = vm.external_ip || '';
+      const internal = vm.internal_ip || '';
       const extInput = document.getElementById('edit-external-ip');
       const intInput = document.getElementById('edit-internal-ip');
       if (extInput) extInput.value = external || '';
