@@ -2,3 +2,6 @@ flask
 flask-socketio
 socketio
 apscheduler
+sqlalchemy
+pymysql
+cryptography
