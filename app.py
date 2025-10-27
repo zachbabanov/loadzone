@@ -13,6 +13,7 @@ import ssl
 from email.message import EmailMessage
 from datetime import datetime, timedelta
 from functools import wraps
+import logging
 
 from flask import Flask, jsonify, request, send_from_directory
 from flask_socketio import SocketIO
@@ -40,13 +41,36 @@ POOL_SIZE = int(os.environ.get('DB_POOL_SIZE', 5))
 MAX_OVERFLOW = int(os.environ.get('DB_MAX_OVERFLOW', 10))
 POOL_TIMEOUT = int(os.environ.get('DB_POOL_TIMEOUT', 30))
 
+SOCKET_MESSAGE_QUEUE = os.environ.get('SOCKET_MESSAGE_QUEUE')
+
 app = Flask(__name__, static_folder='static', template_folder='templates')
 
+handler = logging.StreamHandler()
+handler.setFormatter(logging.Formatter('[%(asctime)s] %(levelname)s in %(module)s: %(message)s'))
+if not app.logger.handlers:
+    app.logger.addHandler(handler)
+app.logger.setLevel(logging.INFO)
+
 if _HAS_EVENTLET:
-    socketio = SocketIO(app, cors_allowed_origins='*', async_mode='eventlet', logger=True, engineio_logger=False, manage_session=False)
+    if SOCKET_MESSAGE_QUEUE:
+        app.logger.info("SocketIO: using eventlet with message_queue=%s", SOCKET_MESSAGE_QUEUE)
+        socketio = SocketIO(app, cors_allowed_origins='*', async_mode='eventlet',
+                            logger=True, engineio_logger=False, manage_session=False,
+                            message_queue=SOCKET_MESSAGE_QUEUE)
+    else:
+        app.logger.info("SocketIO: using eventlet without message_queue (single-process recommended)")
+        socketio = SocketIO(app, cors_allowed_origins='*', async_mode='eventlet',
+                            logger=True, engineio_logger=False, manage_session=False)
 else:
-    app.logger.warning("eventlet not available; fallback to threading async_mode.")
-    socketio = SocketIO(app, cors_allowed_origins='*', async_mode='threading', logger=True, engineio_logger=False, manage_session=False)
+    if SOCKET_MESSAGE_QUEUE:
+        app.logger.info("SocketIO: using threading with message_queue=%s", SOCKET_MESSAGE_QUEUE)
+        socketio = SocketIO(app, cors_allowed_origins='*', async_mode='threading',
+                            logger=True, engineio_logger=False, manage_session=False,
+                            message_queue=SOCKET_MESSAGE_QUEUE)
+    else:
+        app.logger.warning("eventlet not available; fallback to threading (single-process recommended).")
+        socketio = SocketIO(app, cors_allowed_origins='*', async_mode='threading',
+                            logger=True, engineio_logger=False, manage_session=False)
 
 scheduler = BackgroundScheduler()
 scheduler.start()
@@ -127,9 +151,6 @@ with engine.begin() as conn:
 db_lock = threading.Lock()
 
 def db_retry(max_retries=5, initial_delay=0.05, backoff=2.0):
-    """
-    Decorator to retry transient DB errors
-    """
     def decorator(fn):
         @wraps(fn)
         def wrapped(*args, **kwargs):
@@ -149,11 +170,6 @@ def db_retry(max_retries=5, initial_delay=0.05, backoff=2.0):
     return decorator
 
 def _safe_exec(session, thunk):
-    """
-    Execute thunk() which normally calls session.execute(...).*
-    On PendingRollbackError, perform session.rollback() and retry once.
-    thunk must be a zero-arg callable.
-    """
     try:
         return thunk()
     except PendingRollbackError as e:
@@ -165,7 +181,10 @@ def _safe_exec(session, thunk):
 
 def send_email_notification(to_email: str, subject: str, body: str):
     """
-    Send email in a background thread if SMTP variables provided.
+    Send email in a background worker:
+      - if eventlet is present, use eventlet.spawn_n (non-blocking greenlet)
+      - otherwise use threading.Thread
+    Logs at INFO about missing credentials so that systemd logs show cause.
     """
     host = os.environ.get('SMTP_HOST')
     port = os.environ.get('SMTP_PORT')
@@ -173,8 +192,11 @@ def send_email_notification(to_email: str, subject: str, body: str):
     password = os.environ.get('SMTP_PASS')
     sender = os.environ.get('SMTP_FROM') or user
 
+    masked_user = (user.split('@')[0] + "@...") if user and "@" in user else user
+
     if not (host and port and user and password and sender and to_email):
-        app.logger.debug("SMTP credentials incomplete; skipping email to %s", to_email)
+        app.logger.info("SMTP credentials incomplete or missing recipient; skipping email to %r (host=%r, port=%r, user=%r, sender=%r).",
+                        to_email, host, port, masked_user, sender)
         return
 
     def _send():
@@ -189,6 +211,7 @@ def send_email_notification(to_email: str, subject: str, body: str):
         msg['To'] = to_email
         msg.set_content(body)
 
+        app.logger.info("Attempting to send email to %s via %s:%s (user=%s)", to_email, host, port_int, masked_user)
         try:
             if port_int == 465:
                 context = ssl.create_default_context()
@@ -202,16 +225,25 @@ def send_email_notification(to_email: str, subject: str, body: str):
                     server.ehlo()
                     server.login(user, password)
                     server.send_message(msg)
-            app.logger.debug("Email sent to %s (subject=%s)", to_email, subject)
+            app.logger.info("Email successfully sent to %s (subject=%s)", to_email, subject)
         except Exception as exc:
             app.logger.exception("Failed to send email to %s: %s", to_email, str(exc))
 
-    t = threading.Thread(target=_send, daemon=True)
-    t.start()
+    try:
+        if _HAS_EVENTLET:
+            eventlet.spawn_n(_send)
+        else:
+            t = threading.Thread(target=_send, daemon=True)
+            t.start()
+    except Exception:
+        try:
+            t = threading.Thread(target=_send, daemon=True)
+            t.start()
+        except Exception:
+            app.logger.exception("Failed to start background sender for email to %s", to_email)
 
 @db_retry()
 def vm_row_to_dict(row_mapping, session=None):
-    """Convert RowMapping (mappings() result) to dict used by frontend."""
     if not row_mapping:
         return None
     vm_id = row_mapping['id']
@@ -591,6 +623,7 @@ def book_vm():
         return jsonify({'error': 'Не указан vm_id'}), 400
 
     session = Session()
+    expires = None
     try:
         with session.begin():
             row = _safe_exec(session, lambda: session.execute(select(vms).where(vms.c.id == vm_id).with_for_update()).mappings().fetchone())
@@ -656,12 +689,6 @@ def get_me():
 
 @app.route('/queue/join', methods=['POST'])
 def join_queue():
-    """
-    Переписанный join_queue: все действия выполняются в транзакции:
-    - проверяем существование VM (FOR UPDATE чтобы зафиксировать состояние)
-    - читаем текущую очередь (FOR UPDATE чтобы не было гонок при подсчёте позиций)
-    - проверяем ограничения и вставляем новую запись с корректной позицией
-    """
     user_email = request.cookies.get('user_email')
     if not user_email:
         return jsonify({'error': 'Требуется авторизация'}), 401
@@ -671,11 +698,16 @@ def join_queue():
     if not vm_id:
         return jsonify({'error': 'Не указан vm_id'}), 400
 
+    owner = None
+    next_pos = None
+
     session = Session()
     try:
         try:
             with session.begin():
-                vm_row = _safe_exec(session, lambda: session.execute(select(vms.c.id, vms.c.booked_by).where(vms.c.id == vm_id).with_for_update()).mappings().fetchone())
+                vm_row = _safe_exec(session, lambda: session.execute(
+                    select(vms.c.id, vms.c.booked_by).where(vms.c.id == vm_id).with_for_update()
+                ).mappings().fetchone())
                 if not vm_row:
                     return jsonify({'error': 'VM не найдена'}), 404
 
@@ -707,16 +739,21 @@ def join_queue():
         session.close()
 
     if owner:
-        socketio.emit('notification', {'msg': f"{user_email} встал(а) в очередь на VM {vm_id}", 'target': owner})
-        send_email_notification(to_email=owner, subject=f"[LoadZone] На вашу VM {vm_id} появилась очередь", body=f"Пользователь {user_email} встал(а) в очередь на VM {vm_id}.")
+        app.logger.info("join_queue: notifying owner=%s about new queue entry by %s for vm=%s", owner, user_email, vm_id)
+        try:
+            socketio.emit('notification', {'msg': f"{user_email} встал(а) в очередь на VM {vm_id}", 'target': owner})
+        except Exception:
+            app.logger.exception("Failed to emit socket notification in join_queue")
+        try:
+            send_email_notification(to_email=owner, subject=f"[LoadZone] На вашу VM {vm_id} появилась очередь", body=f"Пользователь {user_email} встал(а) в очередь на VM {vm_id}.")
+            app.logger.info("join_queue: send_email_notification invoked for owner=%s", owner)
+        except Exception:
+            app.logger.exception("join_queue: send_email_notification raised exception for owner=%s", owner)
 
     return jsonify({'status': 'ok', 'position': next_pos}), 200
 
 @app.route('/queue/leave', methods=['POST'])
 def leave_queue():
-    """
-    При удалении из очереди — делаем чтение/удаление/перенумерацию в одной транзакции.
-    """
     user_email = request.cookies.get('user_email')
     if not user_email:
         return jsonify({'error': 'Требуется авторизация'}), 401
@@ -816,10 +853,6 @@ def remove_notify_release_jobs():
         app.logger.debug("Could not iterate scheduler jobs", exc_info=True)
 
 def release_vm(vm_id):
-    """
-    Release VM: clear booked_by/expires_at, notify first in queue and add booking record.
-    This function opens and closes its own DB session.
-    """
     session = Session()
     try:
         with session.begin():
@@ -837,14 +870,14 @@ def release_vm(vm_id):
     remove_scheduled_jobs_for_vm(vm_id)
     if first:
         socketio.emit('notification', {'msg': f"VM {vm_id} освобождена — сейчас вы можете её забронировать", 'target': first})
-        send_email_notification(to_email=first, subject=f"[LoadZone] VM {vm_id} освобождена", body=f"VM {vm_id} освобождена — вы первый в очереди и можете её забронировать.")
+        try:
+            send_email_notification(to_email=first, subject=f"[LoadZone] VM {vm_id} освобождена", body=f"VM {vm_id} освобождена — вы первый в очереди и можете её забронировать.")
+            app.logger.info("release_vm: send_email_notification invoked for %s", first)
+        except Exception:
+            app.logger.exception("release_vm: failed to call send_email_notification for %s", first)
     socketio.emit('notification', {'msg': f"VM {vm_id} освобождена"})
 
 def schedule_jobs():
-    """
-    Cancel existing notify/release jobs and schedule new ones according to current VM expirations.
-    Uses db_lock to avoid races when scheduler runs concurrently with request handlers.
-    """
     with db_lock:
         try:
             remove_notify_release_jobs()
@@ -908,10 +941,6 @@ def _parse_iso(s):
             return None
 
 def purge_old_history():
-    """
-    Keep recent or relevant booking history according to rules.
-    Runs hourly by scheduler.
-    """
     now = datetime.now()
     cutoff = now - timedelta(hours=1)
     session = Session()
