@@ -1,3 +1,10 @@
+try:
+    import eventlet
+    eventlet.monkey_patch()
+    _HAS_EVENTLET = True
+except Exception:
+    _HAS_EVENTLET = False
+
 import os
 import threading
 import time
@@ -12,9 +19,10 @@ from flask_socketio import SocketIO
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from sqlalchemy import (
-    create_engine, MetaData, Table, Column, Integer, String, Text, select, insert, update, delete, func
+    create_engine, MetaData, Table, Column, Integer, String, Text,
+    select, insert, update, delete, func
 )
-from sqlalchemy.exc import OperationalError, DatabaseError, InterfaceError
+from sqlalchemy.exc import OperationalError, DatabaseError, InterfaceError, PendingRollbackError
 from sqlalchemy.orm import scoped_session, sessionmaker
 
 MYSQL_USER = os.environ.get('MYSQL_USER')
@@ -33,7 +41,13 @@ MAX_OVERFLOW = int(os.environ.get('DB_MAX_OVERFLOW', 10))
 POOL_TIMEOUT = int(os.environ.get('DB_POOL_TIMEOUT', 30))
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
-socketio = SocketIO(app, cors_allowed_origins='*')
+
+if _HAS_EVENTLET:
+    socketio = SocketIO(app, cors_allowed_origins='*', async_mode='eventlet', logger=True, engineio_logger=False, manage_session=False)
+else:
+    app.logger.warning("eventlet not available; fallback to threading async_mode.")
+    socketio = SocketIO(app, cors_allowed_origins='*', async_mode='threading', logger=True, engineio_logger=False, manage_session=False)
+
 scheduler = BackgroundScheduler()
 scheduler.start()
 
@@ -112,8 +126,10 @@ with engine.begin() as conn:
 
 db_lock = threading.Lock()
 
-
 def db_retry(max_retries=5, initial_delay=0.05, backoff=2.0):
+    """
+    Decorator to retry transient DB errors
+    """
     def decorator(fn):
         @wraps(fn)
         def wrapped(*args, **kwargs):
@@ -132,8 +148,25 @@ def db_retry(max_retries=5, initial_delay=0.05, backoff=2.0):
         return wrapped
     return decorator
 
+def _safe_exec(session, thunk):
+    """
+    Execute thunk() which normally calls session.execute(...).*
+    On PendingRollbackError, perform session.rollback() and retry once.
+    thunk must be a zero-arg callable.
+    """
+    try:
+        return thunk()
+    except PendingRollbackError as e:
+        try:
+            session.rollback()
+        except Exception:
+            app.logger.debug("session.rollback() failed in _safe_exec", exc_info=True)
+        return thunk()
 
 def send_email_notification(to_email: str, subject: str, body: str):
+    """
+    Send email in a background thread if SMTP variables provided.
+    """
     host = os.environ.get('SMTP_HOST')
     port = os.environ.get('SMTP_PORT')
     user = os.environ.get('SMTP_USER')
@@ -176,37 +209,35 @@ def send_email_notification(to_email: str, subject: str, body: str):
     t = threading.Thread(target=_send, daemon=True)
     t.start()
 
-
 @db_retry()
 def vm_row_to_dict(row_mapping, session=None):
-    """row_mapping must be a RowMapping (mappings() result)."""
+    """Convert RowMapping (mappings() result) to dict used by frontend."""
     if not row_mapping:
         return None
     vm_id = row_mapping['id']
     if session is None:
         s = Session()
         try:
-            q_emails = s.execute(select(queue.c.email).where(queue.c.vm_id == vm_id).order_by(queue.c.position)).scalars().all()
+            q_emails = _safe_exec(s, lambda: s.execute(select(queue.c.email).where(queue.c.vm_id == vm_id).order_by(queue.c.position)).scalars().all())
         finally:
             s.close()
     else:
-        q_emails = session.execute(select(queue.c.email).where(queue.c.vm_id == vm_id).order_by(queue.c.position)).scalars().all()
+        q_emails = _safe_exec(session, lambda: session.execute(select(queue.c.email).where(queue.c.vm_id == vm_id).order_by(queue.c.position)).scalars().all())
     return {
         'id': row_mapping['id'],
         'group': row_mapping['group_id'],
         'booked_by': row_mapping['booked_by'],
         'expires_at': row_mapping['expires_at'],
         'queue': q_emails,
-        'external_ip': row_mapping['external_ip'],
-        'internal_ip': row_mapping['internal_ip'],
+        'external_ip': row_mapping.get('external_ip') if hasattr(row_mapping, 'get') else row_mapping['external_ip'],
+        'internal_ip': row_mapping.get('internal_ip') if hasattr(row_mapping, 'get') else row_mapping['internal_ip'],
     }
-
 
 @db_retry()
 def get_all_vms():
     session = Session()
     try:
-        rows = session.execute(select(vms).order_by(vms.c.id)).mappings().all()
+        rows = _safe_exec(session, lambda: session.execute(select(vms).order_by(vms.c.id)).mappings().all())
         result = []
         for row in rows:
             result.append(vm_row_to_dict(row, session=session))
@@ -214,40 +245,36 @@ def get_all_vms():
     finally:
         session.close()
 
-
 @db_retry()
 def get_vm(vm_id):
     session = Session()
     try:
-        row = session.execute(select(vms).where(vms.c.id == vm_id)).mappings().fetchone()
+        row = _safe_exec(session, lambda: session.execute(select(vms).where(vms.c.id == vm_id)).mappings().fetchone())
         return vm_row_to_dict(row, session=session) if row else None
     finally:
         session.close()
-
 
 @db_retry()
 def get_all_groups():
     session = Session()
     try:
-        g_rows = session.execute(select(groups).order_by(groups.c.id)).mappings().all()
+        g_rows = _safe_exec(session, lambda: session.execute(select(groups).order_by(groups.c.id)).mappings().all())
         out = []
         for gr in g_rows:
-            vm_ids = session.execute(select(group_vms.c.vm_id).where(group_vms.c.group_id == gr['id'])).scalars().all()
+            vm_ids = _safe_exec(session, lambda: session.execute(select(group_vms.c.vm_id).where(group_vms.c.group_id == gr['id'])).scalars().all())
             out.append({'id': gr['id'], 'name': gr['name'], 'vm_ids': vm_ids})
         return out
     finally:
         session.close()
 
-
 @db_retry()
 def get_queue_for_vm(vm_id):
     session = Session()
     try:
-        emails = session.execute(select(queue.c.email).where(queue.c.vm_id == vm_id).order_by(queue.c.position)).scalars().all()
+        emails = _safe_exec(session, lambda: session.execute(select(queue.c.email).where(queue.c.vm_id == vm_id).order_by(queue.c.position)).scalars().all())
         return emails
     finally:
         session.close()
-
 
 @db_retry()
 def set_queue_for_vm(vm_id, emails):
@@ -260,16 +287,14 @@ def set_queue_for_vm(vm_id, emails):
     finally:
         session.close()
 
-
 @db_retry()
 def user_exists(email):
     session = Session()
     try:
-        r = session.execute(select(users.c.email).where(users.c.email == email)).scalar()
+        r = _safe_exec(session, lambda: session.execute(select(users.c.email).where(users.c.email == email)).scalar())
         return bool(r)
     finally:
         session.close()
-
 
 @db_retry()
 def ensure_user(email):
@@ -282,7 +307,6 @@ def ensure_user(email):
     finally:
         session.close()
 
-
 @db_retry()
 def add_booking_record(user_email, vm_id, start=None, end=None, action=None):
     session = Session()
@@ -294,25 +318,22 @@ def add_booking_record(user_email, vm_id, start=None, end=None, action=None):
     finally:
         session.close()
 
-
 @db_retry()
 def get_user_bookings(email):
     session = Session()
     try:
-        rows = session.execute(
+        rows = _safe_exec(session, lambda: session.execute(
             select(bookings.c.vm_id, bookings.c.start, bookings.c.end, bookings.c.action)
             .where(bookings.c.user_email == email)
             .order_by(bookings.c.start.desc())
-        ).all()
+        ).all())
         return [dict(vm_id=r[0], start=r[1], end=r[2], action=r[3]) for r in rows]
     finally:
         session.close()
 
-
 @app.route('/')
 def index():
     return send_from_directory('templates', 'index.html')
-
 
 @app.route('/vms', methods=['GET'])
 def list_vms():
@@ -324,11 +345,9 @@ def list_vms():
         vm.setdefault('internal_ip', None)
     return jsonify({'vms': vms_list, 'groups': groups_list})
 
-
 @app.route('/groups', methods=['GET'])
 def list_groups_route():
     return jsonify(get_all_groups())
-
 
 @app.route('/groups', methods=['POST'])
 def create_group():
@@ -340,12 +359,12 @@ def create_group():
 
     session = Session()
     try:
-        existing = session.execute(select(groups.c.id).where(func.lower(groups.c.name) == name.lower())).scalar()
+        existing = _safe_exec(session, lambda: session.execute(select(groups.c.id).where(func.lower(groups.c.name) == name.lower())).scalar())
         if existing:
             return jsonify({'error': 'Группа с таким именем уже существует'}), 400
         with session.begin():
-            r = session.execute(insert(groups).values(name=name))
-            group_id = session.execute(select(groups.c.id).where(groups.c.name == name)).scalar()
+            session.execute(insert(groups).values(name=name))
+            group_id = _safe_exec(session, lambda: session.execute(select(groups.c.id).where(groups.c.name == name)).scalar())
             for vm_id in vm_ids:
                 session.execute(update(vms).where(vms.c.id == vm_id).values(group_id=group_id))
                 session.execute(insert(group_vms).prefix_with('IGNORE').values(group_id=group_id, vm_id=vm_id))
@@ -354,7 +373,6 @@ def create_group():
 
     socketio.emit('notification', {'msg': f"Создана группа «{name}»"})
     return jsonify({'id': group_id, 'name': name, 'vm_ids': vm_ids}), 201
-
 
 @app.route('/groups/<int:group_id>/add-existing-vms', methods=['POST'])
 def add_existing_vms_to_group(group_id):
@@ -365,16 +383,16 @@ def add_existing_vms_to_group(group_id):
 
     session = Session()
     try:
-        if not session.execute(select(groups.c.id).where(groups.c.id == group_id)).scalar():
+        if not _safe_exec(session, lambda: session.execute(select(groups.c.id).where(groups.c.id == group_id)).scalar()):
             return jsonify({'error': 'Группа не найдена'}), 404
         added = []
         with session.begin():
             for vm_id in vm_ids:
-                if session.execute(select(vms.c.id).where(vms.c.id == vm_id)).scalar():
+                if _safe_exec(session, lambda: session.execute(select(vms.c.id).where(vms.c.id == vm_id)).scalar()):
                     session.execute(update(vms).where(vms.c.id == vm_id).values(group_id=group_id))
                     session.execute(insert(group_vms).prefix_with('IGNORE').values(group_id=group_id, vm_id=vm_id))
                     added.append(vm_id)
-        gr = session.execute(select(groups.c.id, groups.c.name).where(groups.c.id == group_id)).mappings().fetchone()
+        gr = _safe_exec(session, lambda: session.execute(select(groups.c.id, groups.c.name).where(groups.c.id == group_id)).mappings().fetchone())
     finally:
         session.close()
 
@@ -383,7 +401,6 @@ def add_existing_vms_to_group(group_id):
 
     socketio.emit('notification', {'msg': f"Добавлено {len(added)} VM в группу {gr['name']}"})
     return jsonify({'added': added, 'group': {'id': gr['id'], 'name': gr['name']}})
-
 
 @app.route('/add-vm', methods=['POST'])
 def add_vm():
@@ -402,12 +419,12 @@ def add_vm():
 
     session = Session()
     try:
-        if session.execute(select(vms.c.id).where(vms.c.id == vm_id)).scalar():
+        if _safe_exec(session, lambda: session.execute(select(vms.c.id).where(vms.c.id == vm_id)).scalar()):
             return jsonify({'error': 'VM с таким идентификатором уже существует'}), 400
 
         group_exists = None
         if group_id is not None:
-            if session.execute(select(groups.c.id).where(groups.c.id == group_id)).scalar():
+            if _safe_exec(session, lambda: session.execute(select(groups.c.id).where(groups.c.id == group_id)).scalar()):
                 group_exists = group_id
 
         with session.begin():
@@ -427,7 +444,6 @@ def add_vm():
     socketio.emit('notification', {'msg': f"Добавлена новая VM: {vm_id}"})
     vm = get_vm(vm_id)
     return jsonify(vm), 201
-
 
 @app.route('/edit-vm', methods=['POST'])
 def edit_vm():
@@ -451,7 +467,7 @@ def edit_vm():
 
     session = Session()
     try:
-        row = session.execute(select(vms).where(vms.c.id == vm_id)).mappings().fetchone()
+        row = _safe_exec(session, lambda: session.execute(select(vms).where(vms.c.id == vm_id)).mappings().fetchone())
         if not row:
             return jsonify({'error': 'VM не найдена'}), 404
 
@@ -463,7 +479,7 @@ def edit_vm():
                     session.execute(update(vms).where(vms.c.id == vm_id).values(group_id=None))
                     session.execute(delete(group_vms).where(group_vms.c.vm_id == vm_id))
                 else:
-                    if not session.execute(select(groups.c.id).where(groups.c.id == new_group_id)).scalar():
+                    if not _safe_exec(session, lambda: session.execute(select(groups.c.id).where(groups.c.id == new_group_id)).scalar()):
                         return jsonify({'error': 'Группа не найдена'}), 404
                     if old_group is not None and old_group != new_group_id:
                         session.execute(delete(group_vms).where((group_vms.c.group_id == old_group) & (group_vms.c.vm_id == vm_id)))
@@ -481,7 +497,6 @@ def edit_vm():
     vm = get_vm(vm_id)
     return jsonify(vm), 200
 
-
 @app.route('/delete-vm', methods=['POST'])
 def delete_vm():
     user_email = request.cookies.get('user_email')
@@ -494,7 +509,7 @@ def delete_vm():
 
     session = Session()
     try:
-        row = session.execute(select(vms).where(vms.c.id == vm_id)).mappings().fetchone()
+        row = _safe_exec(session, lambda: session.execute(select(vms).where(vms.c.id == vm_id)).mappings().fetchone())
         if not row:
             return jsonify({'error': 'VM не найдена'}), 404
         if row['booked_by']:
@@ -513,7 +528,6 @@ def delete_vm():
     socketio.emit('notification', {'msg': f"VM {vm_id} удалена"})
     return jsonify({'status': 'ok'})
 
-
 @app.route('/remove-vm-from-group', methods=['POST'])
 def remove_vm_from_group():
     req = request.get_json() or {}
@@ -527,13 +541,13 @@ def remove_vm_from_group():
         updated = False
         with session.begin():
             if group_id is not None:
-                found = session.execute(select(group_vms.c.vm_id).where((group_vms.c.group_id == group_id) & (group_vms.c.vm_id == vm_id))).scalar()
+                found = _safe_exec(session, lambda: session.execute(select(group_vms.c.vm_id).where((group_vms.c.group_id == group_id) & (group_vms.c.vm_id == vm_id))).scalar())
                 if found:
                     session.execute(delete(group_vms).where((group_vms.c.group_id == group_id) & (group_vms.c.vm_id == vm_id)))
                     session.execute(update(vms).where(vms.c.id == vm_id).values(group_id=None))
                     updated = True
             else:
-                found = session.execute(select(group_vms.c.group_id).where(group_vms.c.vm_id == vm_id)).scalar()
+                found = _safe_exec(session, lambda: session.execute(select(group_vms.c.group_id).where(group_vms.c.vm_id == vm_id)).scalar())
                 if found:
                     session.execute(delete(group_vms).where(group_vms.c.vm_id == vm_id))
                     session.execute(update(vms).where(vms.c.id == vm_id).values(group_id=None))
@@ -547,7 +561,6 @@ def remove_vm_from_group():
     socketio.emit('notification', {'msg': f"VM {vm_id} исключена из группы"})
     return jsonify({'status': 'ok'})
 
-
 @app.route('/auth', methods=['POST'])
 def auth():
     email = (request.json.get('email', '') or '').strip().lower()
@@ -560,13 +573,11 @@ def auth():
     resp.set_cookie('user_email', email, max_age=60*60*24*365)
     return resp
 
-
 @app.route('/logout', methods=['POST'])
 def logout():
     resp = jsonify({'status': 'logged out'})
     resp.set_cookie('user_email', '', expires=0)
     return resp
-
 
 @app.route('/book', methods=['POST'])
 def book_vm():
@@ -582,7 +593,7 @@ def book_vm():
     session = Session()
     try:
         with session.begin():
-            row = session.execute(select(vms).where(vms.c.id == vm_id).with_for_update()).mappings().fetchone()
+            row = _safe_exec(session, lambda: session.execute(select(vms).where(vms.c.id == vm_id).with_for_update()).mappings().fetchone())
             if not row:
                 return jsonify({'error': 'VM не найдена'}), 404
             if row['booked_by']:
@@ -600,7 +611,6 @@ def book_vm():
     schedule_jobs()
     return jsonify(get_vm(vm_id))
 
-
 @app.route('/renew', methods=['POST'])
 def renew_vm():
     user_email = request.cookies.get('user_email')
@@ -615,7 +625,7 @@ def renew_vm():
     session = Session()
     try:
         with session.begin():
-            row = session.execute(select(vms).where(vms.c.id == vm_id).with_for_update()).mappings().fetchone()
+            row = _safe_exec(session, lambda: session.execute(select(vms).where(vms.c.id == vm_id).with_for_update()).mappings().fetchone())
             if not row:
                 return jsonify({'error': 'VM не найдена'}), 404
             if row['booked_by'] != user_email:
@@ -634,7 +644,6 @@ def renew_vm():
     schedule_jobs()
     return jsonify(get_vm(vm_id))
 
-
 @app.route('/me', methods=['GET'])
 def get_me():
     user_email = request.cookies.get('user_email')
@@ -644,7 +653,6 @@ def get_me():
         return jsonify({'authenticated': False}), 200
     bookings_data = get_user_bookings(user_email)
     return jsonify({'authenticated': True, 'email': user_email, 'bookings': bookings_data}), 200
-
 
 @app.route('/queue/join', methods=['POST'])
 def join_queue():
@@ -658,17 +666,17 @@ def join_queue():
 
     session = Session()
     try:
-        if not session.execute(select(vms.c.id).where(vms.c.id == vm_id)).scalar():
+        if not _safe_exec(session, lambda: session.execute(select(vms.c.id).where(vms.c.id == vm_id)).scalar()):
             return jsonify({'error': 'VM не найдена'}), 404
 
-        existing = session.execute(select(queue.c.email).where(queue.c.vm_id == vm_id).order_by(queue.c.position)).scalars().all()
+        existing = _safe_exec(session, lambda: session.execute(select(queue.c.email).where(queue.c.vm_id == vm_id).order_by(queue.c.position)).scalars().all())
         if user_email in existing:
             position = existing.index(user_email) + 1
             return jsonify({'status': 'already_in_queue', 'position': position}), 200
         if len(existing) >= 10:
             return jsonify({'error': 'Очередь заполнена (максимум 10)'}), 400
 
-        owner = session.execute(select(vms.c.booked_by).where(vms.c.id == vm_id)).scalar()
+        owner = _safe_exec(session, lambda: session.execute(select(vms.c.booked_by).where(vms.c.id == vm_id)).scalar())
         if owner == user_email:
             return jsonify({'error': 'Вы уже владеете этой VM'}), 400
 
@@ -684,7 +692,6 @@ def join_queue():
 
     return jsonify({'status': 'ok', 'position': next_pos}), 200
 
-
 @app.route('/queue/leave', methods=['POST'])
 def leave_queue():
     user_email = request.cookies.get('user_email')
@@ -697,19 +704,18 @@ def leave_queue():
 
     session = Session()
     try:
-        row = session.execute(select(queue.c.id, queue.c.position).where((queue.c.vm_id == vm_id) & (queue.c.email == user_email))).mappings().fetchone()
+        row = _safe_exec(session, lambda: session.execute(select(queue.c.id, queue.c.position).where((queue.c.vm_id == vm_id) & (queue.c.email == user_email))).mappings().fetchone())
         if not row:
             return jsonify({'error': 'Вы не в очереди'}), 400
         with session.begin():
             session.execute(delete(queue).where(queue.c.id == row['id']))
-            remaining = session.execute(select(queue.c.id, queue.c.email).where(queue.c.vm_id == vm_id).order_by(queue.c.position)).mappings().all()
+            remaining = _safe_exec(session, lambda: session.execute(select(queue.c.id, queue.c.email).where(queue.c.vm_id == vm_id).order_by(queue.c.position)).mappings().all())
             for pos, r in enumerate(remaining, start=1):
                 session.execute(update(queue).where(queue.c.id == r['id']).values(position=pos))
     finally:
         session.close()
 
     return jsonify({'status': 'ok'}), 200
-
 
 @app.route('/cancel', methods=['POST'])
 def cancel_booking():
@@ -724,7 +730,7 @@ def cancel_booking():
     session = Session()
     try:
         with session.begin():
-            row = session.execute(select(vms.c.booked_by).where(vms.c.id == vm_id).with_for_update()).mappings().fetchone()
+            row = _safe_exec(session, lambda: session.execute(select(vms.c.booked_by).where(vms.c.id == vm_id).with_for_update()).mappings().fetchone())
             if not row:
                 return jsonify({'error': 'VM не найдена'}), 404
             if row['booked_by'] != user_email:
@@ -739,7 +745,6 @@ def cancel_booking():
     schedule_jobs()
     return jsonify({'status': 'ok'})
 
-
 @app.route('/delete-group', methods=['POST'])
 def delete_group():
     req = request.get_json() or {}
@@ -749,10 +754,10 @@ def delete_group():
 
     session = Session()
     try:
-        if not session.execute(select(groups.c.id).where(groups.c.id == group_id)).scalar():
+        if not _safe_exec(session, lambda: session.execute(select(groups.c.id).where(groups.c.id == group_id)).scalar()):
             return jsonify({'error': 'Группа не найдена'}), 404
         with session.begin():
-            vm_ids = session.execute(select(group_vms.c.vm_id).where(group_vms.c.group_id == group_id)).scalars().all()
+            vm_ids = _safe_exec(session, lambda: session.execute(select(group_vms.c.vm_id).where(group_vms.c.group_id == group_id)).scalars().all())
             for vm_id in vm_ids:
                 session.execute(update(vms).where(vms.c.id == vm_id).values(group_id=None))
             session.execute(delete(group_vms).where(group_vms.c.group_id == group_id))
@@ -762,7 +767,6 @@ def delete_group():
 
     socketio.emit('notification', {'msg': f"Группа {group_id} удалена"})
     return jsonify({'status': 'ok'})
-
 
 def remove_notify_release_jobs():
     try:
@@ -776,20 +780,22 @@ def remove_notify_release_jobs():
     except Exception:
         app.logger.debug("Could not iterate scheduler jobs", exc_info=True)
 
-
 def release_vm(vm_id):
+    """
+    Release VM: clear booked_by/expires_at, notify first in queue and add booking record.
+    This function opens and closes its own DB session.
+    """
     session = Session()
     try:
         with session.begin():
-            row = session.execute(select(vms).where(vms.c.id == vm_id).with_for_update()).mappings().fetchone()
+            row = _safe_exec(session, lambda: session.execute(select(vms).where(vms.c.id == vm_id).with_for_update()).mappings().fetchone())
             if not row:
                 return
             user_email = row['booked_by']
             if user_email and user_exists(user_email):
                 session.execute(insert(bookings).values(user_email=user_email, vm_id=vm_id, start=datetime.now().isoformat(), end=None, action='release'))
-
             session.execute(update(vms).where(vms.c.id == vm_id).values(booked_by=None, expires_at=None))
-            first = session.execute(select(queue.c.email).where(queue.c.vm_id == vm_id).order_by(queue.c.position).limit(1)).scalars().first()
+            first = _safe_exec(session, lambda: session.execute(select(queue.c.email).where(queue.c.vm_id == vm_id).order_by(queue.c.position).limit(1)).scalars().first())
     finally:
         session.close()
 
@@ -799,8 +805,11 @@ def release_vm(vm_id):
         send_email_notification(to_email=first, subject=f"[LoadZone] VM {vm_id} освобождена", body=f"VM {vm_id} освобождена — вы первый в очереди и можете её забронировать.")
     socketio.emit('notification', {'msg': f"VM {vm_id} освобождена"})
 
-
 def schedule_jobs():
+    """
+    Cancel existing notify/release jobs and schedule new ones according to current VM expirations.
+    Uses db_lock to avoid races when scheduler runs concurrently with request handlers.
+    """
     with db_lock:
         try:
             remove_notify_release_jobs()
@@ -820,7 +829,6 @@ def schedule_jobs():
                     queue_emails = vm.get('queue') or []
                     if queue_emails:
                         first = queue_emails[0]
-
                         def make_notify_first(vm_id=vm['id'], target=first):
                             def _fn():
                                 try:
@@ -829,15 +837,13 @@ def schedule_jobs():
                                 except Exception:
                                     app.logger.exception("notify-first job failed for VM %s", vm_id)
                             return _fn
-
                         try:
                             scheduler.add_job(func=make_notify_first(), trigger='date', run_date=notify_time, id=f"notify_{vm['id']}", replace_existing=True)
                         except Exception:
                             app.logger.exception("Failed to schedule notify job for vm %s", vm.get('id'))
                     else:
                         try:
-                            scheduler.add_job(func=lambda vm_id=vm['id']: socketio.emit('notification', {'msg': f"Бронь VM {vm_id} истекает через час!"}),
-                                              trigger='date', run_date=notify_time, id=f"notify_{vm['id']}", replace_existing=True)
+                            scheduler.add_job(func=lambda vm_id=vm['id']: socketio.emit('notification', {'msg': f"Бронь VM {vm_id} истекает через час!"}), trigger='date', run_date=notify_time, id=f"notify_{vm['id']}", replace_existing=True)
                         except Exception:
                             pass
 
@@ -847,14 +853,12 @@ def schedule_jobs():
                     except Exception:
                         pass
 
-
 def remove_scheduled_jobs_for_vm(vm_id):
     for jid in [f"notify_{vm_id}", f"release_{vm_id}"]:
         try:
             scheduler.remove_job(jid)
         except Exception:
             pass
-
 
 def _parse_iso(s):
     if not s:
@@ -868,16 +872,19 @@ def _parse_iso(s):
         except Exception:
             return None
 
-
 def purge_old_history():
+    """
+    Keep recent or relevant booking history according to rules.
+    Runs hourly by scheduler.
+    """
     now = datetime.now()
     cutoff = now - timedelta(hours=1)
     session = Session()
     try:
-        rows = session.execute(
+        rows = _safe_exec(session, lambda: session.execute(
             select(bookings.c.id, bookings.c.user_email, bookings.c.vm_id, bookings.c.start, bookings.c.end, bookings.c.action)
             .order_by(bookings.c.user_email, bookings.c.vm_id, bookings.c.start)
-        ).all()
+        ).all())
     finally:
         session.close()
 
@@ -942,7 +949,6 @@ def purge_old_history():
     if keep_records:
         app.logger.info("purge_old_history: cleaned outdated booking records")
 
-
 try:
     scheduler.add_job(func=purge_old_history, trigger='interval', hours=1, id='purge_old_history_job', replace_existing=True)
 except Exception:
@@ -953,11 +959,15 @@ try:
 except Exception:
     app.logger.exception("Initial purge_old_history failed")
 
-
 @socketio.on('connect')
 def on_connect(auth=None):
-    schedule_jobs()
-
+    try:
+        schedule_jobs()
+    except Exception:
+        app.logger.exception("schedule_jobs failed on connect")
 
 if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=5000)
+    if _HAS_EVENTLET:
+        socketio.run(app, host='0.0.0.0', port=5000)
+    else:
+        socketio.run(app, host='0.0.0.0', port=5000)
