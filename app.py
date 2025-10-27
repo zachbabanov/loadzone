@@ -656,9 +656,16 @@ def get_me():
 
 @app.route('/queue/join', methods=['POST'])
 def join_queue():
+    """
+    Переписанный join_queue: все действия выполняются в транзакции:
+    - проверяем существование VM (FOR UPDATE чтобы зафиксировать состояние)
+    - читаем текущую очередь (FOR UPDATE чтобы не было гонок при подсчёте позиций)
+    - проверяем ограничения и вставляем новую запись с корректной позицией
+    """
     user_email = request.cookies.get('user_email')
     if not user_email:
         return jsonify({'error': 'Требуется авторизация'}), 401
+
     req = request.get_json() or {}
     vm_id = req.get('vm_id')
     if not vm_id:
@@ -666,23 +673,36 @@ def join_queue():
 
     session = Session()
     try:
-        if not _safe_exec(session, lambda: session.execute(select(vms.c.id).where(vms.c.id == vm_id)).scalar()):
-            return jsonify({'error': 'VM не найдена'}), 404
+        try:
+            with session.begin():
+                vm_row = _safe_exec(session, lambda: session.execute(select(vms.c.id, vms.c.booked_by).where(vms.c.id == vm_id).with_for_update()).mappings().fetchone())
+                if not vm_row:
+                    return jsonify({'error': 'VM не найдена'}), 404
 
-        existing = _safe_exec(session, lambda: session.execute(select(queue.c.email).where(queue.c.vm_id == vm_id).order_by(queue.c.position)).scalars().all())
-        if user_email in existing:
-            position = existing.index(user_email) + 1
-            return jsonify({'status': 'already_in_queue', 'position': position}), 200
-        if len(existing) >= 10:
-            return jsonify({'error': 'Очередь заполнена (максимум 10)'}), 400
+                existing_emails = _safe_exec(session, lambda: session.execute(
+                    select(queue.c.email).where(queue.c.vm_id == vm_id).order_by(queue.c.position).with_for_update()
+                ).scalars().all())
 
-        owner = _safe_exec(session, lambda: session.execute(select(vms.c.booked_by).where(vms.c.id == vm_id)).scalar())
-        if owner == user_email:
-            return jsonify({'error': 'Вы уже владеете этой VM'}), 400
+                if user_email in existing_emails:
+                    position = existing_emails.index(user_email) + 1
+                    return jsonify({'status': 'already_in_queue', 'position': position}), 200
 
-        next_pos = len(existing) + 1
-        with session.begin():
-            session.execute(insert(queue).values(vm_id=vm_id, email=user_email, position=next_pos))
+                if len(existing_emails) >= 10:
+                    return jsonify({'error': 'Очередь заполнена (максимум 10)'}), 400
+
+                owner = vm_row['booked_by']
+                if owner == user_email:
+                    return jsonify({'error': 'Вы уже владеете этой VM'}), 400
+
+                next_pos = len(existing_emails) + 1
+                session.execute(insert(queue).values(vm_id=vm_id, email=user_email, position=next_pos))
+        except (OperationalError, InterfaceError, DatabaseError, PendingRollbackError) as exc:
+            app.logger.exception("DB error in join_queue for vm %s user %s", vm_id, user_email)
+            try:
+                session.rollback()
+            except Exception:
+                pass
+            return jsonify({'error': 'Внутренняя ошибка базы данных'}), 500
     finally:
         session.close()
 
@@ -694,6 +714,9 @@ def join_queue():
 
 @app.route('/queue/leave', methods=['POST'])
 def leave_queue():
+    """
+    При удалении из очереди — делаем чтение/удаление/перенумерацию в одной транзакции.
+    """
     user_email = request.cookies.get('user_email')
     if not user_email:
         return jsonify({'error': 'Требуется авторизация'}), 401
@@ -704,14 +727,26 @@ def leave_queue():
 
     session = Session()
     try:
-        row = _safe_exec(session, lambda: session.execute(select(queue.c.id, queue.c.position).where((queue.c.vm_id == vm_id) & (queue.c.email == user_email))).mappings().fetchone())
-        if not row:
-            return jsonify({'error': 'Вы не в очереди'}), 400
-        with session.begin():
-            session.execute(delete(queue).where(queue.c.id == row['id']))
-            remaining = _safe_exec(session, lambda: session.execute(select(queue.c.id, queue.c.email).where(queue.c.vm_id == vm_id).order_by(queue.c.position)).mappings().all())
-            for pos, r in enumerate(remaining, start=1):
-                session.execute(update(queue).where(queue.c.id == r['id']).values(position=pos))
+        try:
+            with session.begin():
+                row = _safe_exec(session, lambda: session.execute(
+                    select(queue.c.id, queue.c.position).where((queue.c.vm_id == vm_id) & (queue.c.email == user_email)).with_for_update()
+                ).mappings().fetchone())
+                if not row:
+                    return jsonify({'error': 'Вы не в очереди'}), 400
+                session.execute(delete(queue).where(queue.c.id == row['id']))
+                remaining = _safe_exec(session, lambda: session.execute(
+                    select(queue.c.id, queue.c.email).where(queue.c.vm_id == vm_id).order_by(queue.c.position).with_for_update()
+                ).mappings().all())
+                for pos, r in enumerate(remaining, start=1):
+                    session.execute(update(queue).where(queue.c.id == r['id']).values(position=pos))
+        except (OperationalError, InterfaceError, DatabaseError, PendingRollbackError) as exc:
+            app.logger.exception("DB error in leave_queue for vm %s user %s", vm_id, user_email)
+            try:
+                session.rollback()
+            except Exception:
+                pass
+            return jsonify({'error': 'Внутренняя ошибка базы данных'}), 500
     finally:
         session.close()
 
