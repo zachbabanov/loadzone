@@ -893,6 +893,7 @@ def schedule_jobs():
                 except Exception:
                     continue
                 notify_time = expires - timedelta(hours=1)
+                # schedule notify (one hour before) if it's in future
                 if notify_time > now:
                     queue_emails = vm.get('queue') or []
                     if queue_emails:
@@ -915,11 +916,12 @@ def schedule_jobs():
                         except Exception:
                             pass
 
+                # schedule release at expiry
                 if expires > now:
                     try:
                         scheduler.add_job(func=lambda vm_id=vm['id']: release_vm(vm_id), trigger='date', run_date=expires, id=f"release_{vm['id']}", replace_existing=True)
                     except Exception:
-                        pass
+                        app.logger.exception("Failed to schedule release job for vm %s", vm.get('id'))
 
 def remove_scheduled_jobs_for_vm(vm_id):
     for jid in [f"notify_{vm_id}", f"release_{vm_id}"]:
@@ -939,6 +941,38 @@ def _parse_iso(s):
             return dt.strptime(s[:19], "%Y-%m-%dT%H:%M:%S")
         except Exception:
             return None
+
+def check_and_release_expired_vms():
+    """
+    Periodic monitor: scan DB for VMs whose expires_at <= now and release them.
+    Runs every minute to ensure expired bookings are released even when scheduled jobs were missed.
+    """
+    with db_lock:
+        now = datetime.now()
+        session = Session()
+        try:
+            rows = _safe_exec(session, lambda: session.execute(
+                select(vms.c.id, vms.c.expires_at).where(vms.c.booked_by != None)
+            ).mappings().all())
+        except Exception:
+            app.logger.exception("check_and_release_expired_vms: DB query failed")
+            session.close()
+            return
+
+        session.close()
+
+        for r in rows:
+            vm_id = r.get('id')
+            expires_at = _parse_iso(r.get('expires_at'))
+            if expires_at is None:
+                continue
+            if expires_at <= now:
+                app.logger.info("check_and_release_expired_vms: found expired VM %s (expired=%s), releasing", vm_id, expires_at)
+                try:
+                    # call release_vm which handles its own DB session and notifications
+                    release_vm(vm_id)
+                except Exception:
+                    app.logger.exception("check_and_release_expired_vms: failed to release %s", vm_id)
 
 def purge_old_history():
     now = datetime.now()
@@ -1013,15 +1047,30 @@ def purge_old_history():
     if keep_records:
         app.logger.info("purge_old_history: cleaned outdated booking records")
 
+# schedule purge job
 try:
     scheduler.add_job(func=purge_old_history, trigger='interval', hours=1, id='purge_old_history_job', replace_existing=True)
 except Exception:
     app.logger.exception("Failed to schedule purge_old_history_job", exc_info=True)
 
+# run initial purge immediately (safe)
 try:
     purge_old_history()
 except Exception:
     app.logger.exception("Initial purge_old_history failed")
+
+# ensure scheduled notify/release tasks are created at startup
+try:
+    schedule_jobs()
+except Exception:
+    app.logger.exception("Initial schedule_jobs failed")
+
+# add periodic monitor to guarantee expirations are processed
+try:
+    scheduler.add_job(func=check_and_release_expired_vms, trigger='interval', seconds=60, id='monitor_expired_vms', replace_existing=True)
+    app.logger.info("Scheduled periodic monitor check_and_release_expired_vms every 60s")
+except Exception:
+    app.logger.exception("Failed to schedule monitor_expired_vms job", exc_info=True)
 
 @socketio.on('connect')
 def on_connect(auth=None):
