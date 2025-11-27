@@ -1,4 +1,4 @@
-# app.py — обновлённый
+# полный app.py — исправлённая версия (убран scoped_session -> используем sessionmaker)
 try:
     import eventlet
     eventlet.monkey_patch()
@@ -24,8 +24,8 @@ from sqlalchemy import (
     create_engine, MetaData, Table, Column, Integer, String, Text,
     select, insert, update, delete, func, and_
 )
-from sqlalchemy.exc import OperationalError, DatabaseError, InterfaceError, PendingRollbackError
-from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.exc import OperationalError, DatabaseError, InterfaceError, PendingRollbackError, InvalidRequestError
+from sqlalchemy.orm import sessionmaker
 
 # --- Config from env ---
 MYSQL_USER = os.environ.get('MYSQL_USER')
@@ -45,7 +45,6 @@ POOL_TIMEOUT = int(os.environ.get('DB_POOL_TIMEOUT', 30))
 
 SOCKET_MESSAGE_QUEUE = os.environ.get('SOCKET_MESSAGE_QUEUE')
 
-# --- Flask / SocketIO init ---
 app = Flask(__name__, static_folder='static', template_folder='templates')
 
 handler = logging.StreamHandler()
@@ -54,7 +53,6 @@ if not app.logger.handlers:
     app.logger.addHandler(handler)
 app.logger.setLevel(logging.INFO)
 
-# Enable engineio_logger for better diagnostics (can be set False after debugging)
 _engineio_logger = os.environ.get('ENGINEIO_LOGGER', '1') != '0'
 
 if _HAS_EVENTLET:
@@ -78,11 +76,9 @@ else:
         socketio = SocketIO(app, cors_allowed_origins='*', async_mode='threading',
                             logger=True, engineio_logger=_engineio_logger, manage_session=False)
 
-# --- Scheduler ---
 scheduler = BackgroundScheduler()
 scheduler.start()
 
-# --- DB setup ---
 engine = create_engine(
     DB_URL,
     pool_size=POOL_SIZE,
@@ -91,7 +87,11 @@ engine = create_engine(
     pool_pre_ping=True,
     future=True
 )
-Session = scoped_session(sessionmaker(bind=engine, expire_on_commit=False))
+
+# IMPORTANT CHANGE:
+# - НЕ используем scoped_session (он может возвращать одну и ту же сессию между greenlet'ами/потоками)
+# - Session теперь — фабрика сессий: вызов Session() даёт НОВУЮ сессию
+Session = sessionmaker(bind=engine, expire_on_commit=False, future=True)
 
 metadata = MetaData()
 
@@ -158,10 +158,9 @@ with engine.begin() as conn:
 
 db_lock = threading.Lock()
 
-# --- Helpers ---
 def db_retry(max_retries=5, initial_delay=0.05, backoff=2.0):
     """
-    Retry transient DB errors (including PendingRollbackError).
+    Retry transient DB errors (including PendingRollbackError and InvalidRequestError).
     """
     def decorator(fn):
         @wraps(fn)
@@ -171,7 +170,7 @@ def db_retry(max_retries=5, initial_delay=0.05, backoff=2.0):
             for attempt in range(max_retries):
                 try:
                     return fn(*args, **kwargs)
-                except (OperationalError, InterfaceError, DatabaseError, PendingRollbackError) as exc:
+                except (OperationalError, InterfaceError, DatabaseError, PendingRollbackError, InvalidRequestError) as exc:
                     last_exc = exc
                     app.logger.debug("DB transient error on attempt %d for %s: %s", attempt + 1, fn.__name__, repr(exc))
                     time.sleep(delay)
@@ -184,16 +183,17 @@ def db_retry(max_retries=5, initial_delay=0.05, backoff=2.0):
 def _safe_exec(session, thunk):
     """
     Execute thunk() which normally calls session.execute(...).
-    On PendingRollbackError, perform session.rollback() and retry once.
+    On PendingRollbackError or InvalidRequestError, perform session.rollback() and retry once.
     thunk must be a zero-arg callable.
     """
     try:
         return thunk()
-    except PendingRollbackError:
+    except (PendingRollbackError, InvalidRequestError) as e:
         try:
             session.rollback()
         except Exception:
             app.logger.debug("session.rollback() failed in _safe_exec", exc_info=True)
+        # retry once
         return thunk()
 
 def _parse_iso(s):
@@ -208,13 +208,7 @@ def _parse_iso(s):
         except Exception:
             return None
 
-# --- Email sending (background, non-blocking) ---
 def send_email_notification(to_email: str, subject: str, body: str):
-    """
-    Send email in a background worker:
-      - if eventlet is present, use eventlet.spawn_n (non-blocking greenlet)
-      - otherwise use threading.Thread
-    """
     host = os.environ.get('SMTP_HOST')
     port = os.environ.get('SMTP_PORT')
     user = os.environ.get('SMTP_USER')
@@ -271,21 +265,22 @@ def send_email_notification(to_email: str, subject: str, body: str):
         except Exception:
             app.logger.exception("Failed to start background sender for email to %s", to_email)
 
-# --- Row/DB helpers ---
 @db_retry()
-def vm_row_to_dict(row_mapping, session=None):
-    """Convert RowMapping (mappings() result) to dict used by frontend."""
+def vm_row_to_dict(row_mapping):
+    """
+    NOTE: intentionally does NOT accept a caller's session.
+    It opens/closes its own session for reading queue emails to avoid
+    reusing a transaction/session from a caller (which caused InvalidRequestError).
+    """
     if not row_mapping:
         return None
     vm_id = row_mapping['id']
-    if session is None:
-        s = Session()
-        try:
-            q_emails = _safe_exec(s, lambda: s.execute(select(queue.c.email).where(queue.c.vm_id == vm_id).order_by(queue.c.position)).scalars().all())
-        finally:
-            s.close()
-    else:
-        q_emails = _safe_exec(session, lambda: session.execute(select(queue.c.email).where(queue.c.vm_id == vm_id).order_by(queue.c.position)).scalars().all())
+    s = Session()
+    try:
+        q_emails = _safe_exec(s, lambda: s.execute(select(queue.c.email).where(queue.c.vm_id == vm_id).order_by(queue.c.position)).scalars().all())
+    finally:
+        s.close()
+
     return {
         'id': row_mapping['id'],
         'group': row_mapping['group_id'],
@@ -303,7 +298,8 @@ def get_all_vms():
         rows = _safe_exec(session, lambda: session.execute(select(vms).order_by(vms.c.id)).mappings().all())
         result = []
         for row in rows:
-            result.append(vm_row_to_dict(row, session=session))
+            # DON'T pass the parent's session into vm_row_to_dict — let it use its own
+            result.append(vm_row_to_dict(row))
         return result
     finally:
         session.close()
@@ -313,7 +309,7 @@ def get_vm(vm_id):
     session = Session()
     try:
         row = _safe_exec(session, lambda: session.execute(select(vms).where(vms.c.id == vm_id)).mappings().fetchone())
-        return vm_row_to_dict(row, session=session) if row else None
+        return vm_row_to_dict(row) if row else None
     finally:
         session.close()
 
@@ -394,7 +390,7 @@ def get_user_bookings(email):
     finally:
         session.close()
 
-# --- HTTP routes ---
+# --- routes (unchanged behavior) ---
 @app.route('/')
 def index():
     return send_from_directory('templates', 'index.html')
@@ -727,9 +723,6 @@ def get_me():
 
 @app.route('/queue/join', methods=['POST'])
 def join_queue():
-    """
-    All DB actions done in transaction to avoid race conditions.
-    """
     user_email = request.cookies.get('user_email')
     if not user_email:
         return jsonify({'error': 'Требуется авторизация'}), 401
@@ -769,7 +762,7 @@ def join_queue():
 
                 next_pos = len(existing_emails) + 1
                 session.execute(insert(queue).values(vm_id=vm_id, email=user_email, position=next_pos))
-        except (OperationalError, InterfaceError, DatabaseError, PendingRollbackError) as exc:
+        except (OperationalError, InterfaceError, DatabaseError, PendingRollbackError, InvalidRequestError) as exc:
             app.logger.exception("DB error in join_queue for vm %s user %s", vm_id, user_email)
             try:
                 session.rollback()
@@ -818,7 +811,7 @@ def leave_queue():
                 ).mappings().all())
                 for pos, r in enumerate(remaining, start=1):
                     session.execute(update(queue).where(queue.c.id == r['id']).values(position=pos))
-        except (OperationalError, InterfaceError, DatabaseError, PendingRollbackError) as exc:
+        except (OperationalError, InterfaceError, DatabaseError, PendingRollbackError, InvalidRequestError) as exc:
             app.logger.exception("DB error in leave_queue for vm %s user %s", vm_id, user_email)
             try:
                 session.rollback()
@@ -881,7 +874,7 @@ def delete_group():
     socketio.emit('notification', {'msg': f"Группа {group_id} удалена"})
     return jsonify({'status': 'ok'})
 
-# --- Release / scheduler helpers ---
+# --- scheduler helpers ---
 def remove_notify_release_jobs():
     try:
         for job in scheduler.get_jobs():
@@ -897,7 +890,7 @@ def remove_notify_release_jobs():
 def release_vm(vm_id):
     """
     Release VM: clear booked_by/expires_at, notify first in queue and add booking record.
-    This function opens and closes its own DB session.
+    Uses its own session and does not rely on any external session.
     """
     session = Session()
     first = None
@@ -911,7 +904,6 @@ def release_vm(vm_id):
                 session.execute(insert(bookings).values(user_email=user_email, vm_id=vm_id, start=datetime.now().isoformat(), end=None, action='release'))
             session.execute(update(vms).where(vms.c.id == vm_id).values(booked_by=None, expires_at=None))
             first = _safe_exec(session, lambda: session.execute(select(queue.c.email).where(queue.c.vm_id == vm_id).order_by(queue.c.position).limit(1)).scalars().first())
-            # If first obtained, remove it from queue and renumber — do that in separate transaction to be safe
             if first:
                 session.execute(delete(queue).where((queue.c.vm_id == vm_id) & (queue.c.email == first)))
                 remaining = _safe_exec(session, lambda: session.execute(select(queue.c.id, queue.c.email).where(queue.c.vm_id == vm_id).order_by(queue.c.position)).mappings().all())
@@ -920,11 +912,14 @@ def release_vm(vm_id):
     finally:
         session.close()
 
-    # Remove old scheduled jobs for this VM (noop if not present)
     remove_scheduled_jobs_for_vm(vm_id)
 
     if first:
-        socketio.emit('notification', {'msg': f"VM {vm_id} освобождена — сейчас вы можете её забронировать", 'target': first})
+        # уведомляем первого в очереди
+        try:
+            socketio.emit('notification', {'msg': f"VM {vm_id} освобождена — сейчас вы можете её забронировать", 'target': first})
+        except Exception:
+            app.logger.exception("release_vm: socket emit failed for %s", first)
         try:
             send_email_notification(to_email=first, subject=f"[LoadZone] VM {vm_id} освобождена", body=f"VM {vm_id} освобождена — вы первый в очереди и можете её забронировать.")
             app.logger.info("release_vm: send_email_notification invoked for %s", first)
@@ -934,10 +929,6 @@ def release_vm(vm_id):
     socketio.emit('notification', {'msg': f"VM {vm_id} освобождена"})
 
 def schedule_jobs():
-    """
-    Cancel existing notify/release jobs and schedule new ones according to current VM expirations.
-    Uses db_lock to avoid races when scheduler runs concurrently with request handlers.
-    """
     with db_lock:
         try:
             remove_notify_release_jobs()
@@ -953,7 +944,6 @@ def schedule_jobs():
                     if not expires:
                         continue
                     notify_time = expires - timedelta(hours=1)
-                    # schedule notify (1 hour before) if in future
                     if notify_time > now:
                         queue_emails = vm.get('queue') or []
                         if queue_emails:
@@ -976,7 +966,6 @@ def schedule_jobs():
                             except Exception:
                                 app.logger.exception("Failed to schedule generic notify for vm %s", vm.get('id'))
 
-                    # schedule release at exact expiry if in future
                     if expires > now:
                         try:
                             scheduler.add_job(func=lambda vm_id=vm['id']: release_vm(vm_id), trigger='date', run_date=expires, id=f"release_{vm['id']}", replace_existing=True)
@@ -992,20 +981,15 @@ def remove_scheduled_jobs_for_vm(vm_id):
         except Exception:
             pass
 
-# --- New robust periodic monitor ---
 @db_retry()
 def check_and_release_expired_vms():
     """
-    Periodic job that scans for VMs with expires_at <= now and booked_by IS NOT NULL,
-    and calls release_vm(vm_id) for each expired VM.
-
-    Important: this function creates and closes its own DB session and does NOT
-    reuse session objects across scheduler runs/threads.
+    Periodic job scanning for expired VMs and calling release_vm(vm_id) for each.
+    Each DB access opens/closes its own session (no session reuse).
     """
     now = datetime.now()
     session = Session()
     try:
-        # Select vms that have a booked_by and a non-null expires_at
         rows = _safe_exec(session, lambda: session.execute(
             select(vms.c.id, vms.c.expires_at, vms.c.booked_by)
             .where(and_(vms.c.booked_by != None, vms.c.expires_at != None))
@@ -1014,6 +998,7 @@ def check_and_release_expired_vms():
         session.close()
 
     if not rows:
+        app.logger.debug("check_and_release_expired_vms: no rows found")
         return
 
     expired = []
@@ -1026,11 +1011,11 @@ def check_and_release_expired_vms():
             expired.append(vm_id)
 
     if not expired:
+        app.logger.debug("check_and_release_expired_vms: no expired vms at %s", now.isoformat())
         return
 
     app.logger.info("check_and_release_expired_vms: found %d expired VMs: %s", len(expired), expired)
 
-    # Release each expired VM — release_vm uses its own session
     for vm_id in expired:
         try:
             app.logger.info("check_and_release_expired_vms: releasing VM %s", vm_id)
@@ -1038,7 +1023,6 @@ def check_and_release_expired_vms():
         except Exception:
             app.logger.exception("check_and_release_expired_vms: failed to release vm %s", vm_id)
 
-# --- History purge (unchanged logic but kept safe) ---
 def purge_old_history():
     now = datetime.now()
     cutoff = now - timedelta(hours=1)
@@ -1112,7 +1096,7 @@ def purge_old_history():
     if keep_records:
         app.logger.info("purge_old_history: cleaned outdated booking records")
 
-# --- Schedule periodic jobs at startup ---
+# schedule periodic tasks
 try:
     scheduler.add_job(func=purge_old_history, trigger='interval', hours=1, id='purge_old_history_job', replace_existing=True)
 except Exception:
@@ -1124,7 +1108,6 @@ try:
 except Exception:
     app.logger.exception("Failed to schedule check_and_release_expired_vms", exc_info=True)
 
-# initial runs
 try:
     purge_old_history()
 except Exception:
@@ -1135,7 +1118,6 @@ try:
 except Exception:
     app.logger.exception("Initial check_and_release_expired_vms failed")
 
-# --- SocketIO connect hook (keeps schedule in sync when clients connect) ---
 @socketio.on('connect')
 def on_connect(auth=None):
     try:
@@ -1144,7 +1126,6 @@ def on_connect(auth=None):
     except Exception:
         app.logger.exception("schedule_jobs failed on connect")
 
-# --- Run ---
 if __name__ == '__main__':
     if _HAS_EVENTLET:
         socketio.run(app, host='0.0.0.0', port=5000)
