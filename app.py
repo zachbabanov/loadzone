@@ -180,12 +180,6 @@ def _safe_exec(session, thunk):
         return thunk()
 
 def send_email_notification(to_email: str, subject: str, body: str):
-    """
-    Send email in a background worker:
-      - if eventlet is present, use eventlet.spawn_n (non-blocking greenlet)
-      - otherwise use threading.Thread
-    Logs at INFO about missing credentials so that systemd logs show cause.
-    """
     host = os.environ.get('SMTP_HOST')
     port = os.environ.get('SMTP_PORT')
     user = os.environ.get('SMTP_USER')
@@ -244,9 +238,27 @@ def send_email_notification(to_email: str, subject: str, body: str):
 
 @db_retry()
 def vm_row_to_dict(row_mapping, session=None):
+    """Convert RowMapping to a plain dict (materialize values immediately)."""
     if not row_mapping:
         return None
-    vm_id = row_mapping['id']
+
+    # Materialize the row mapping into a plain dict so it doesn't hold references to session/row internals
+    try:
+        base = dict(row_mapping)
+    except Exception:
+        # fallback: copy keys manually
+        base = {}
+        try:
+            keys = list(row_mapping.keys())
+            for k in keys:
+                base[k] = row_mapping[k]
+        except Exception:
+            # ultimate fallback: try attribute access
+            for k in ('id', 'group_id', 'booked_by', 'expires_at', 'external_ip', 'internal_ip'):
+                base[k] = row_mapping.get(k) if hasattr(row_mapping, 'get') else None
+
+    vm_id = base.get('id')
+
     if session is None:
         s = Session()
         try:
@@ -255,14 +267,15 @@ def vm_row_to_dict(row_mapping, session=None):
             s.close()
     else:
         q_emails = _safe_exec(session, lambda: session.execute(select(queue.c.email).where(queue.c.vm_id == vm_id).order_by(queue.c.position)).scalars().all())
+
     return {
-        'id': row_mapping['id'],
-        'group': row_mapping['group_id'],
-        'booked_by': row_mapping['booked_by'],
-        'expires_at': row_mapping['expires_at'],
+        'id': base.get('id'),
+        'group': base.get('group_id'),
+        'booked_by': base.get('booked_by'),
+        'expires_at': base.get('expires_at'),
         'queue': q_emails,
-        'external_ip': row_mapping.get('external_ip') if hasattr(row_mapping, 'get') else row_mapping['external_ip'],
-        'internal_ip': row_mapping.get('internal_ip') if hasattr(row_mapping, 'get') else row_mapping['internal_ip'],
+        'external_ip': base.get('external_ip'),
+        'internal_ip': base.get('internal_ip'),
     }
 
 @db_retry()
@@ -884,7 +897,12 @@ def schedule_jobs():
         except Exception:
             app.logger.exception("Failed to remove old notify/release jobs")
 
-        vms_list = get_all_vms()
+        try:
+            vms_list = get_all_vms()
+        except Exception:
+            app.logger.exception("schedule_jobs: failed to fetch VMs")
+            return
+
         now = datetime.now()
         for vm in vms_list:
             if vm.get('booked_by') and vm.get('expires_at'):
@@ -893,7 +911,6 @@ def schedule_jobs():
                 except Exception:
                     continue
                 notify_time = expires - timedelta(hours=1)
-                # schedule notify (one hour before) if it's in future
                 if notify_time > now:
                     queue_emails = vm.get('queue') or []
                     if queue_emails:
@@ -916,7 +933,6 @@ def schedule_jobs():
                         except Exception:
                             pass
 
-                # schedule release at expiry
                 if expires > now:
                     try:
                         scheduler.add_job(func=lambda vm_id=vm['id']: release_vm(vm_id), trigger='date', run_date=expires, id=f"release_{vm['id']}", replace_existing=True)
@@ -945,21 +961,29 @@ def _parse_iso(s):
 def check_and_release_expired_vms():
     """
     Periodic monitor: scan DB for VMs whose expires_at <= now and release them.
-    Runs every minute to ensure expired bookings are released even when scheduled jobs were missed.
+    Materialize rows into plain dicts BEFORE closing session to avoid using RowMapping after session close.
     """
     with db_lock:
         now = datetime.now()
         session = Session()
         try:
-            rows = _safe_exec(session, lambda: session.execute(
+            raw_rows = _safe_exec(session, lambda: session.execute(
                 select(vms.c.id, vms.c.expires_at).where(vms.c.booked_by != None)
             ).mappings().all())
+            # materialize into list of plain dicts while session still open
+            rows = [dict(r) for r in raw_rows]
         except Exception:
             app.logger.exception("check_and_release_expired_vms: DB query failed")
-            session.close()
+            try:
+                session.close()
+            except Exception:
+                pass
             return
-
-        session.close()
+        finally:
+            try:
+                session.close()
+            except Exception:
+                pass
 
         for r in rows:
             vm_id = r.get('id')
@@ -969,7 +993,6 @@ def check_and_release_expired_vms():
             if expires_at <= now:
                 app.logger.info("check_and_release_expired_vms: found expired VM %s (expired=%s), releasing", vm_id, expires_at)
                 try:
-                    # call release_vm which handles its own DB session and notifications
                     release_vm(vm_id)
                 except Exception:
                     app.logger.exception("check_and_release_expired_vms: failed to release %s", vm_id)
@@ -1053,13 +1076,13 @@ try:
 except Exception:
     app.logger.exception("Failed to schedule purge_old_history_job", exc_info=True)
 
-# run initial purge immediately (safe)
+# run initial purge safely
 try:
     purge_old_history()
 except Exception:
     app.logger.exception("Initial purge_old_history failed")
 
-# ensure scheduled notify/release tasks are created at startup
+# ensure scheduled notify/release tasks are created at startup (best-effort)
 try:
     schedule_jobs()
 except Exception:
