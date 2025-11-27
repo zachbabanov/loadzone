@@ -1,3 +1,4 @@
+# app.py — обновлённый
 try:
     import eventlet
     eventlet.monkey_patch()
@@ -21,11 +22,12 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 from sqlalchemy import (
     create_engine, MetaData, Table, Column, Integer, String, Text,
-    select, insert, update, delete, func
+    select, insert, update, delete, func, and_
 )
 from sqlalchemy.exc import OperationalError, DatabaseError, InterfaceError, PendingRollbackError
 from sqlalchemy.orm import scoped_session, sessionmaker
 
+# --- Config from env ---
 MYSQL_USER = os.environ.get('MYSQL_USER')
 MYSQL_PASS = os.environ.get('MYSQL_PASS')
 MYSQL_HOST = os.environ.get('MYSQL_HOST', '127.0.0.1')
@@ -43,6 +45,7 @@ POOL_TIMEOUT = int(os.environ.get('DB_POOL_TIMEOUT', 30))
 
 SOCKET_MESSAGE_QUEUE = os.environ.get('SOCKET_MESSAGE_QUEUE')
 
+# --- Flask / SocketIO init ---
 app = Flask(__name__, static_folder='static', template_folder='templates')
 
 handler = logging.StreamHandler()
@@ -51,30 +54,35 @@ if not app.logger.handlers:
     app.logger.addHandler(handler)
 app.logger.setLevel(logging.INFO)
 
+# Enable engineio_logger for better diagnostics (can be set False after debugging)
+_engineio_logger = os.environ.get('ENGINEIO_LOGGER', '1') != '0'
+
 if _HAS_EVENTLET:
     if SOCKET_MESSAGE_QUEUE:
         app.logger.info("SocketIO: using eventlet with message_queue=%s", SOCKET_MESSAGE_QUEUE)
         socketio = SocketIO(app, cors_allowed_origins='*', async_mode='eventlet',
-                            logger=True, engineio_logger=False, manage_session=False,
+                            logger=True, engineio_logger=_engineio_logger, manage_session=False,
                             message_queue=SOCKET_MESSAGE_QUEUE)
     else:
         app.logger.info("SocketIO: using eventlet without message_queue (single-process recommended)")
         socketio = SocketIO(app, cors_allowed_origins='*', async_mode='eventlet',
-                            logger=True, engineio_logger=False, manage_session=False)
+                            logger=True, engineio_logger=_engineio_logger, manage_session=False)
 else:
     if SOCKET_MESSAGE_QUEUE:
         app.logger.info("SocketIO: using threading with message_queue=%s", SOCKET_MESSAGE_QUEUE)
         socketio = SocketIO(app, cors_allowed_origins='*', async_mode='threading',
-                            logger=True, engineio_logger=False, manage_session=False,
+                            logger=True, engineio_logger=_engineio_logger, manage_session=False,
                             message_queue=SOCKET_MESSAGE_QUEUE)
     else:
         app.logger.warning("eventlet not available; fallback to threading (single-process recommended).")
         socketio = SocketIO(app, cors_allowed_origins='*', async_mode='threading',
-                            logger=True, engineio_logger=False, manage_session=False)
+                            logger=True, engineio_logger=_engineio_logger, manage_session=False)
 
+# --- Scheduler ---
 scheduler = BackgroundScheduler()
 scheduler.start()
 
+# --- DB setup ---
 engine = create_engine(
     DB_URL,
     pool_size=POOL_SIZE,
@@ -150,7 +158,11 @@ with engine.begin() as conn:
 
 db_lock = threading.Lock()
 
+# --- Helpers ---
 def db_retry(max_retries=5, initial_delay=0.05, backoff=2.0):
+    """
+    Retry transient DB errors (including PendingRollbackError).
+    """
     def decorator(fn):
         @wraps(fn)
         def wrapped(*args, **kwargs):
@@ -159,7 +171,7 @@ def db_retry(max_retries=5, initial_delay=0.05, backoff=2.0):
             for attempt in range(max_retries):
                 try:
                     return fn(*args, **kwargs)
-                except (OperationalError, InterfaceError, DatabaseError) as exc:
+                except (OperationalError, InterfaceError, DatabaseError, PendingRollbackError) as exc:
                     last_exc = exc
                     app.logger.debug("DB transient error on attempt %d for %s: %s", attempt + 1, fn.__name__, repr(exc))
                     time.sleep(delay)
@@ -170,16 +182,39 @@ def db_retry(max_retries=5, initial_delay=0.05, backoff=2.0):
     return decorator
 
 def _safe_exec(session, thunk):
+    """
+    Execute thunk() which normally calls session.execute(...).
+    On PendingRollbackError, perform session.rollback() and retry once.
+    thunk must be a zero-arg callable.
+    """
     try:
         return thunk()
-    except PendingRollbackError as e:
+    except PendingRollbackError:
         try:
             session.rollback()
         except Exception:
             app.logger.debug("session.rollback() failed in _safe_exec", exc_info=True)
         return thunk()
 
+def _parse_iso(s):
+    if not s:
+        return None
+    try:
+        return datetime.fromisoformat(s)
+    except Exception:
+        try:
+            from datetime import datetime as dt
+            return dt.strptime(s[:19], "%Y-%m-%dT%H:%M:%S")
+        except Exception:
+            return None
+
+# --- Email sending (background, non-blocking) ---
 def send_email_notification(to_email: str, subject: str, body: str):
+    """
+    Send email in a background worker:
+      - if eventlet is present, use eventlet.spawn_n (non-blocking greenlet)
+      - otherwise use threading.Thread
+    """
     host = os.environ.get('SMTP_HOST')
     port = os.environ.get('SMTP_PORT')
     user = os.environ.get('SMTP_USER')
@@ -190,7 +225,7 @@ def send_email_notification(to_email: str, subject: str, body: str):
 
     if not (host and port and user and password and sender and to_email):
         app.logger.info("SMTP credentials incomplete or missing recipient; skipping email to %r (host=%r, port=%r, user=%r, sender=%r).",
-                        to_email, host, port, masked_user, sender)
+                         to_email, host, port, masked_user, sender)
         return
 
     def _send():
@@ -236,29 +271,13 @@ def send_email_notification(to_email: str, subject: str, body: str):
         except Exception:
             app.logger.exception("Failed to start background sender for email to %s", to_email)
 
+# --- Row/DB helpers ---
 @db_retry()
 def vm_row_to_dict(row_mapping, session=None):
-    """Convert RowMapping to a plain dict (materialize values immediately)."""
+    """Convert RowMapping (mappings() result) to dict used by frontend."""
     if not row_mapping:
         return None
-
-    # Materialize the row mapping into a plain dict so it doesn't hold references to session/row internals
-    try:
-        base = dict(row_mapping)
-    except Exception:
-        # fallback: copy keys manually
-        base = {}
-        try:
-            keys = list(row_mapping.keys())
-            for k in keys:
-                base[k] = row_mapping[k]
-        except Exception:
-            # ultimate fallback: try attribute access
-            for k in ('id', 'group_id', 'booked_by', 'expires_at', 'external_ip', 'internal_ip'):
-                base[k] = row_mapping.get(k) if hasattr(row_mapping, 'get') else None
-
-    vm_id = base.get('id')
-
+    vm_id = row_mapping['id']
     if session is None:
         s = Session()
         try:
@@ -267,15 +286,14 @@ def vm_row_to_dict(row_mapping, session=None):
             s.close()
     else:
         q_emails = _safe_exec(session, lambda: session.execute(select(queue.c.email).where(queue.c.vm_id == vm_id).order_by(queue.c.position)).scalars().all())
-
     return {
-        'id': base.get('id'),
-        'group': base.get('group_id'),
-        'booked_by': base.get('booked_by'),
-        'expires_at': base.get('expires_at'),
+        'id': row_mapping['id'],
+        'group': row_mapping['group_id'],
+        'booked_by': row_mapping['booked_by'],
+        'expires_at': row_mapping['expires_at'],
         'queue': q_emails,
-        'external_ip': base.get('external_ip'),
-        'internal_ip': base.get('internal_ip'),
+        'external_ip': row_mapping.get('external_ip') if hasattr(row_mapping, 'get') else row_mapping['external_ip'],
+        'internal_ip': row_mapping.get('internal_ip') if hasattr(row_mapping, 'get') else row_mapping['internal_ip'],
     }
 
 @db_retry()
@@ -376,6 +394,7 @@ def get_user_bookings(email):
     finally:
         session.close()
 
+# --- HTTP routes ---
 @app.route('/')
 def index():
     return send_from_directory('templates', 'index.html')
@@ -631,7 +650,10 @@ def book_vm():
         return jsonify({'error': 'Требуется авторизация'}), 401
     req = request.get_json() or {}
     vm_id = req.get('vm_id')
-    hours = min(max(int(req.get('hours', 24)), 1), 24)
+    try:
+        hours = min(max(int(req.get('hours', 24)), 1), 24)
+    except Exception:
+        hours = 24
     if not vm_id:
         return jsonify({'error': 'Не указан vm_id'}), 400
 
@@ -664,7 +686,10 @@ def renew_vm():
         return jsonify({'error': 'Требуется авторизация'}), 401
     req = request.get_json() or {}
     vm_id = req.get('vm_id')
-    hours = min(max(int(req.get('hours', 24)), 1), 24)
+    try:
+        hours = min(max(int(req.get('hours', 24)), 1), 24)
+    except Exception:
+        hours = 24
     if not vm_id:
         return jsonify({'error': 'Не указан vm_id'}), 400
 
@@ -702,6 +727,9 @@ def get_me():
 
 @app.route('/queue/join', methods=['POST'])
 def join_queue():
+    """
+    All DB actions done in transaction to avoid race conditions.
+    """
     user_email = request.cookies.get('user_email')
     if not user_email:
         return jsonify({'error': 'Требуется авторизация'}), 401
@@ -853,6 +881,7 @@ def delete_group():
     socketio.emit('notification', {'msg': f"Группа {group_id} удалена"})
     return jsonify({'status': 'ok'})
 
+# --- Release / scheduler helpers ---
 def remove_notify_release_jobs():
     try:
         for job in scheduler.get_jobs():
@@ -866,7 +895,12 @@ def remove_notify_release_jobs():
         app.logger.debug("Could not iterate scheduler jobs", exc_info=True)
 
 def release_vm(vm_id):
+    """
+    Release VM: clear booked_by/expires_at, notify first in queue and add booking record.
+    This function opens and closes its own DB session.
+    """
     session = Session()
+    first = None
     try:
         with session.begin():
             row = _safe_exec(session, lambda: session.execute(select(vms).where(vms.c.id == vm_id).with_for_update()).mappings().fetchone())
@@ -877,10 +911,18 @@ def release_vm(vm_id):
                 session.execute(insert(bookings).values(user_email=user_email, vm_id=vm_id, start=datetime.now().isoformat(), end=None, action='release'))
             session.execute(update(vms).where(vms.c.id == vm_id).values(booked_by=None, expires_at=None))
             first = _safe_exec(session, lambda: session.execute(select(queue.c.email).where(queue.c.vm_id == vm_id).order_by(queue.c.position).limit(1)).scalars().first())
+            # If first obtained, remove it from queue and renumber — do that in separate transaction to be safe
+            if first:
+                session.execute(delete(queue).where((queue.c.vm_id == vm_id) & (queue.c.email == first)))
+                remaining = _safe_exec(session, lambda: session.execute(select(queue.c.id, queue.c.email).where(queue.c.vm_id == vm_id).order_by(queue.c.position)).mappings().all())
+                for pos, r in enumerate(remaining, start=1):
+                    session.execute(update(queue).where(queue.c.id == r['id']).values(position=pos))
     finally:
         session.close()
 
+    # Remove old scheduled jobs for this VM (noop if not present)
     remove_scheduled_jobs_for_vm(vm_id)
+
     if first:
         socketio.emit('notification', {'msg': f"VM {vm_id} освобождена — сейчас вы можете её забронировать", 'target': first})
         try:
@@ -888,56 +930,60 @@ def release_vm(vm_id):
             app.logger.info("release_vm: send_email_notification invoked for %s", first)
         except Exception:
             app.logger.exception("release_vm: failed to call send_email_notification for %s", first)
+
     socketio.emit('notification', {'msg': f"VM {vm_id} освобождена"})
 
 def schedule_jobs():
+    """
+    Cancel existing notify/release jobs and schedule new ones according to current VM expirations.
+    Uses db_lock to avoid races when scheduler runs concurrently with request handlers.
+    """
     with db_lock:
         try:
             remove_notify_release_jobs()
         except Exception:
             app.logger.exception("Failed to remove old notify/release jobs")
 
-        try:
-            vms_list = get_all_vms()
-        except Exception:
-            app.logger.exception("schedule_jobs: failed to fetch VMs")
-            return
-
+        vms_list = get_all_vms()
         now = datetime.now()
         for vm in vms_list:
-            if vm.get('booked_by') and vm.get('expires_at'):
-                try:
-                    expires = datetime.fromisoformat(vm['expires_at'])
-                except Exception:
-                    continue
-                notify_time = expires - timedelta(hours=1)
-                if notify_time > now:
-                    queue_emails = vm.get('queue') or []
-                    if queue_emails:
-                        first = queue_emails[0]
-                        def make_notify_first(vm_id=vm['id'], target=first):
-                            def _fn():
-                                try:
-                                    socketio.emit('notification', {'msg': f"VM {vm_id}: через час бронь истечёт — вы следующий в очереди.", 'target': target})
-                                    send_email_notification(to_email=target, subject=f"[LoadZone] Вы следующий в очереди VM {vm_id}", body=f"VM {vm_id}: текущая бронь истекает через час — вы следующий в очереди.")
-                                except Exception:
-                                    app.logger.exception("notify-first job failed for VM %s", vm_id)
-                            return _fn
-                        try:
-                            scheduler.add_job(func=make_notify_first(), trigger='date', run_date=notify_time, id=f"notify_{vm['id']}", replace_existing=True)
-                        except Exception:
-                            app.logger.exception("Failed to schedule notify job for vm %s", vm.get('id'))
-                    else:
-                        try:
-                            scheduler.add_job(func=lambda vm_id=vm['id']: socketio.emit('notification', {'msg': f"Бронь VM {vm_id} истекает через час!"}), trigger='date', run_date=notify_time, id=f"notify_{vm['id']}", replace_existing=True)
-                        except Exception:
-                            pass
+            try:
+                if vm.get('booked_by') and vm.get('expires_at'):
+                    expires = _parse_iso(vm['expires_at'])
+                    if not expires:
+                        continue
+                    notify_time = expires - timedelta(hours=1)
+                    # schedule notify (1 hour before) if in future
+                    if notify_time > now:
+                        queue_emails = vm.get('queue') or []
+                        if queue_emails:
+                            first = queue_emails[0]
+                            def notify_first_callable(vm_id=vm['id'], target=first):
+                                def _fn():
+                                    try:
+                                        socketio.emit('notification', {'msg': f"VM {vm_id}: через час бронь истечёт — вы следующий в очереди.", 'target': target})
+                                        send_email_notification(to_email=target, subject=f"[LoadZone] Вы следующий в очереди VM {vm_id}", body=f"VM {vm_id}: текущая бронь истекает через час — вы следующий в очереди.")
+                                    except Exception:
+                                        app.logger.exception("notify-first job failed for VM %s", vm_id)
+                                return _fn
+                            try:
+                                scheduler.add_job(func=notify_first_callable(), trigger='date', run_date=notify_time, id=f"notify_{vm['id']}", replace_existing=True)
+                            except Exception:
+                                app.logger.exception("Failed to schedule notify job for vm %s", vm.get('id'))
+                        else:
+                            try:
+                                scheduler.add_job(func=lambda vm_id=vm['id']: socketio.emit('notification', {'msg': f"Бронь VM {vm_id} истекает через час!"}), trigger='date', run_date=notify_time, id=f"notify_{vm['id']}", replace_existing=True)
+                            except Exception:
+                                app.logger.exception("Failed to schedule generic notify for vm %s", vm.get('id'))
 
-                if expires > now:
-                    try:
-                        scheduler.add_job(func=lambda vm_id=vm['id']: release_vm(vm_id), trigger='date', run_date=expires, id=f"release_{vm['id']}", replace_existing=True)
-                    except Exception:
-                        app.logger.exception("Failed to schedule release job for vm %s", vm.get('id'))
+                    # schedule release at exact expiry if in future
+                    if expires > now:
+                        try:
+                            scheduler.add_job(func=lambda vm_id=vm['id']: release_vm(vm_id), trigger='date', run_date=expires, id=f"release_{vm['id']}", replace_existing=True)
+                        except Exception:
+                            app.logger.exception("Failed to schedule release job for vm %s", vm.get('id'))
+            except Exception:
+                app.logger.exception("schedule_jobs: problem scheduling for vm %s", vm.get('id'))
 
 def remove_scheduled_jobs_for_vm(vm_id):
     for jid in [f"notify_{vm_id}", f"release_{vm_id}"]:
@@ -946,57 +992,53 @@ def remove_scheduled_jobs_for_vm(vm_id):
         except Exception:
             pass
 
-def _parse_iso(s):
-    if not s:
-        return None
-    try:
-        return datetime.fromisoformat(s)
-    except Exception:
-        try:
-            from datetime import datetime as dt
-            return dt.strptime(s[:19], "%Y-%m-%dT%H:%M:%S")
-        except Exception:
-            return None
-
+# --- New robust periodic monitor ---
+@db_retry()
 def check_and_release_expired_vms():
     """
-    Periodic monitor: scan DB for VMs whose expires_at <= now and release them.
-    Materialize rows into plain dicts BEFORE closing session to avoid using RowMapping after session close.
+    Periodic job that scans for VMs with expires_at <= now and booked_by IS NOT NULL,
+    and calls release_vm(vm_id) for each expired VM.
+
+    Important: this function creates and closes its own DB session and does NOT
+    reuse session objects across scheduler runs/threads.
     """
-    with db_lock:
-        now = datetime.now()
-        session = Session()
+    now = datetime.now()
+    session = Session()
+    try:
+        # Select vms that have a booked_by and a non-null expires_at
+        rows = _safe_exec(session, lambda: session.execute(
+            select(vms.c.id, vms.c.expires_at, vms.c.booked_by)
+            .where(and_(vms.c.booked_by != None, vms.c.expires_at != None))
+        ).mappings().all())
+    finally:
+        session.close()
+
+    if not rows:
+        return
+
+    expired = []
+    for r in rows:
+        vm_id = r['id']
+        expires_at = _parse_iso(r['expires_at'])
+        if not expires_at:
+            continue
+        if expires_at <= now:
+            expired.append(vm_id)
+
+    if not expired:
+        return
+
+    app.logger.info("check_and_release_expired_vms: found %d expired VMs: %s", len(expired), expired)
+
+    # Release each expired VM — release_vm uses its own session
+    for vm_id in expired:
         try:
-            raw_rows = _safe_exec(session, lambda: session.execute(
-                select(vms.c.id, vms.c.expires_at).where(vms.c.booked_by != None)
-            ).mappings().all())
-            # materialize into list of plain dicts while session still open
-            rows = [dict(r) for r in raw_rows]
+            app.logger.info("check_and_release_expired_vms: releasing VM %s", vm_id)
+            release_vm(vm_id)
         except Exception:
-            app.logger.exception("check_and_release_expired_vms: DB query failed")
-            try:
-                session.close()
-            except Exception:
-                pass
-            return
-        finally:
-            try:
-                session.close()
-            except Exception:
-                pass
+            app.logger.exception("check_and_release_expired_vms: failed to release vm %s", vm_id)
 
-        for r in rows:
-            vm_id = r.get('id')
-            expires_at = _parse_iso(r.get('expires_at'))
-            if expires_at is None:
-                continue
-            if expires_at <= now:
-                app.logger.info("check_and_release_expired_vms: found expired VM %s (expired=%s), releasing", vm_id, expires_at)
-                try:
-                    release_vm(vm_id)
-                except Exception:
-                    app.logger.exception("check_and_release_expired_vms: failed to release %s", vm_id)
-
+# --- History purge (unchanged logic but kept safe) ---
 def purge_old_history():
     now = datetime.now()
     cutoff = now - timedelta(hours=1)
@@ -1070,38 +1112,39 @@ def purge_old_history():
     if keep_records:
         app.logger.info("purge_old_history: cleaned outdated booking records")
 
-# schedule purge job
+# --- Schedule periodic jobs at startup ---
 try:
     scheduler.add_job(func=purge_old_history, trigger='interval', hours=1, id='purge_old_history_job', replace_existing=True)
 except Exception:
     app.logger.exception("Failed to schedule purge_old_history_job", exc_info=True)
 
-# run initial purge safely
+try:
+    scheduler.add_job(func=check_and_release_expired_vms, trigger='interval', seconds=60, id='check_and_release_expired_vms', replace_existing=True)
+    app.logger.info("Scheduled periodic monitor check_and_release_expired_vms every 60s")
+except Exception:
+    app.logger.exception("Failed to schedule check_and_release_expired_vms", exc_info=True)
+
+# initial runs
 try:
     purge_old_history()
 except Exception:
     app.logger.exception("Initial purge_old_history failed")
 
-# ensure scheduled notify/release tasks are created at startup (best-effort)
 try:
-    schedule_jobs()
+    check_and_release_expired_vms()
 except Exception:
-    app.logger.exception("Initial schedule_jobs failed")
+    app.logger.exception("Initial check_and_release_expired_vms failed")
 
-# add periodic monitor to guarantee expirations are processed
-try:
-    scheduler.add_job(func=check_and_release_expired_vms, trigger='interval', seconds=60, id='monitor_expired_vms', replace_existing=True)
-    app.logger.info("Scheduled periodic monitor check_and_release_expired_vms every 60s")
-except Exception:
-    app.logger.exception("Failed to schedule monitor_expired_vms job", exc_info=True)
-
+# --- SocketIO connect hook (keeps schedule in sync when clients connect) ---
 @socketio.on('connect')
 def on_connect(auth=None):
     try:
+        app.logger.debug("Socket connect, scheduling jobs")
         schedule_jobs()
     except Exception:
         app.logger.exception("schedule_jobs failed on connect")
 
+# --- Run ---
 if __name__ == '__main__':
     if _HAS_EVENTLET:
         socketio.run(app, host='0.0.0.0', port=5000)
